@@ -208,13 +208,12 @@ def menu_launcher(h):
 
 def menu_extras(h):
     st = extras.status(h)
-    print(bold("Google Play apps on Quest: microG + Aurora Store") + dim("  (experimental)"))
+    print(bold("Google Play apps on Quest: Aurora Store"))
     print("   " + extras.NOTE)
-    print(f"   Currently: microG {'installed' if st['microg'] else 'not installed'}, "
-          f"Aurora Store {'installed' if st['aurora'] else 'not installed'}")
-    if not st["microg"] and yes("Install microG Services + Companion and Aurora Store (verified downloads)?"):
+    print(f"   Currently: Aurora Store {'installed' if st['aurora'] else 'not installed'}")
+    if not st["aurora"] and yes("Install Aurora Store (from F-Droid)?"):
         extras.install_play_apps(h, progress)
-    elif st["microg"] and yes("Remove microG and Aurora Store?"):
+    elif st["aurora"] and yes("Remove Aurora Store?"):
         extras.remove_play_apps(h, progress)
 
 
@@ -261,7 +260,7 @@ def main() -> None:
                     ("Check the home environment (white sky bug)", menu_environment),
                     ("Install / update / remove the launcher", menu_launcher),
                     ("Restore removed apps or a backup", menu_restore),
-                    ("Extras: Google Play apps (microG + Aurora Store, experimental)", menu_extras)]
+                    ("Extras: Google Play apps (Aurora Store)", menu_extras)]
         for i, (label, _) in enumerate(options, 1):
             print(f"   {i}) {label}")
         print("   q) Quit")

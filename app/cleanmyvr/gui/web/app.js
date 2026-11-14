@@ -145,10 +145,10 @@ async function restorePage() {
 
 async function extrasPage() {
   const s = await api.extras_status();
-  $("#ex-box").innerHTML = `<b>microG: ${s.microg ? "installed" : "not installed"} · Aurora Store: ${s.aurora ? "installed" : "not installed"}</b>
+  $("#ex-box").innerHTML = `<b>Aurora Store: ${s.aurora ? "installed" : "not installed"}</b>
     <p class="muted small">${esc(s.note)}</p>`;
-  $("#btn-ex-install").disabled = s.microg && s.aurora;
-  $("#btn-ex-remove").disabled = !s.microg && !s.aurora;
+  $("#btn-ex-install").disabled = s.aurora;
+  $("#btn-ex-remove").disabled = !s.aurora;
 }
 
 // ------------------------------------------------------------------ updates
@@ -195,8 +195,8 @@ function wire() {
   $("#btn-ln-remove").onclick = () => run("uninstall_launcher", {}, "Remove the launcher and give the Library back to Meta?");
   $("#btn-rs-apps").onclick = () => run("restore", {user: picked("rsuser")}, "Reinstall the apps listed?");
   $("#btn-rs-pick").onclick = async () => { const f = await api.choose_folder(); if (f) $("#rs-src").value = f; };
-  $("#btn-ex-install").onclick = () => run("install_play_apps", {}, "Install microG Services, microG Companion and Aurora Store? (experimental; removable)");
-  $("#btn-ex-remove").onclick = () => run("remove_play_apps", {}, "Remove microG and Aurora Store?");
+  $("#btn-ex-install").onclick = () => run("install_play_apps", {}, "Install Aurora Store? (removable)");
+  $("#btn-ex-remove").onclick = () => run("remove_play_apps", {}, "Remove Aurora Store?");
   $("#btn-rs-backup").onclick = () => run("restore_backup", {src: $("#rs-src").value, user: picked("rsuser")}, "Copy this backup onto the picked profile?");
 }
 

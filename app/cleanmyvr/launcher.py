@@ -77,7 +77,9 @@ def takeover_state(h: Headset) -> str:
         crashed = re.search(r"Crashed services:\{(.*)", block)
         if crashed and PKG in crashed.group(1):
             return "stopped"
-        return "running" if bound and "Launcher: replace Library" in bound.group(1) else "stopped"
+        # Android shows either the service's label or its class name, depending on the profile.
+        names = ("Launcher: replace Library", "LibraryInterceptor")
+        return "running" if bound and any(n in bound.group(1) for n in names) else "stopped"
     return "stopped"
 
 

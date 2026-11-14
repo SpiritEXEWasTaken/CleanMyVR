@@ -226,6 +226,12 @@ class Takeover(unittest.TestCase):
 
     def test_states(self):
         self.assertEqual(launcher.takeover_state(headset(self.fake(True, True))), "running")
+        # some profiles show the class name instead of the label
+        f = self.fake(True, False)
+        self.DUMP_BOUND = "Service[label=com.cleanmyvr.launcher.LibraryInterceptor, x]"
+        orig = f.shell
+        f.shell = lambda cmd, timeout=120: Result(0, self.DUMP % (self.DUMP_BOUND, "")) if cmd == "dumpsys accessibility" else orig(cmd, timeout)
+        self.assertEqual(launcher.takeover_state(headset(f)), "running")
         self.assertEqual(launcher.takeover_state(headset(self.fake(True, False))), "stopped")
         self.assertEqual(launcher.takeover_state(headset(self.fake(True, True, "com.cleanmyvr.launcher/x"))), "stopped")
         self.assertEqual(launcher.takeover_state(headset(self.fake(False, False))), "off")

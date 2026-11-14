@@ -38,9 +38,10 @@ On Linux, if the headset shows as "no permissions", add a udev rule for Meta's U
 - **Environment**: diagnoses the "Home is just a white sky" bug (see below).
 - **Launcher**: installs the companion launcher (Library replacement plus an app store).
 - **Restore**: reinstalls removed apps, or copies a backup back (game saves only into installed games).
-- **Extras → Google Play apps** (experimental): installs microG Services + Companion (hash-verified
-  from microG's repository, never a build less than 14 days old) and Aurora Store. Quest has no
-  signature spoofing, so apps that strictly verify Google (sign-in, Play Integrity, banking/DRM) still won't work.
+- **Extras → Google Play apps:** installs Aurora Store (from F-Droid), which downloads Play Store apps
+  without a Google account. Apps that need Google's services (Google sign-in, push notifications, Play
+  Integrity, many banking/streaming apps) won't run: Quest has no Google services, and microG (the open
+  stand-in) can't be installed, because Horizon OS blocks apps that declare Google's reserved permissions.
 
 Removal is `pm uninstall -k --user <profile>`, so system apps stay on the system partition and come
 back with Restore. Store apps that only existed for one profile need reinstalling from the Meta Store.

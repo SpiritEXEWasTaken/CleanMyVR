@@ -86,4 +86,6 @@ convenience.
   alive (the "keeps stopping" dialog holds it) leaves it stuck in "Binding services"; only `am force-stop` clears
   that. The launcher's `CrashGuard` ends the process itself and restarts the takeover from its `:guard` process
   (needs `WRITE_SECURE_SETTINGS`, granted by `launcher.install`/`repair`); `launcher.repair` force-stops first.
+- microG can't be installed: `INSTALL_FAILED_VERIFICATION_FAILURE: ... not allowed to declare
+  com.google.android.c2dm.permission.SEND in a protected prefix`. Extras only offers Aurora Store.
 - `com.android.settings/.Settings` isn't exported to apps; open App info (`ACTION_APPLICATION_DETAILS_SETTINGS`) instead.

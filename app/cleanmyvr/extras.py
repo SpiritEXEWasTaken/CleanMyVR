@@ -1,27 +1,26 @@
-"""Optional extras: Google Play apps via microG + Aurora Store (experimental on Quest)."""
+"""Optional extras: Aurora Store, to get Play Store apps on Quest without a Google account.
+
+microG (an open stand-in for Google's services) can't be installed on Quest: Horizon OS refuses non-system apps
+that declare permissions under Google's reserved names (INSTALL_FAILED_VERIFICATION_FAILURE: "not allowed to
+declare com.google.android.c2dm.permission.SEND in a protected prefix"), and microG has to declare them.
+So only Aurora Store is offered; removal still cleans up microG in case an older CleanMyVR installed it.
+"""
 from __future__ import annotations
 
-import hashlib
 import json
 import tempfile
-import time
 import urllib.request
 from pathlib import Path
 
 from . import state as S
 from .device import Headset
 
-MICROG_REPO = "https://repo.microg.org/fdroid/repo"
-MICROG_PACKAGES = {
-    "com.google.android.gms": "microG Services",
-    "com.android.vending": "microG Companion (stands in for the Play Store)",
-}
+MICROG_PACKAGES = ("com.google.android.gms", "com.android.vending")   # only removed, never installed
 AURORA = "com.aurora.store"
-MIN_AGE_DAYS = 14   # don't install a build that's only been out a few days
 
-NOTE = ("Experimental on Quest: Quest has no 'signature spoofing', so apps that strictly verify Google's "
-        "services (Google sign-in, Play Integrity, many banking/DRM apps) still won't work. Apps that just "
-        "need the services to exist (push notifications, maps, many games) often do.")
+NOTE = ("Aurora Store downloads Play Store apps anonymously. Apps that need Google's services (Google sign-in, "
+        "push notifications, Play Integrity, many banking/streaming apps) won't run: Quest has no Google services, "
+        "and microG, the open stand-in, can't be installed on Quest.")
 
 
 def _get(url: str, timeout: int = 120) -> bytes:
@@ -30,74 +29,41 @@ def _get(url: str, timeout: int = 120) -> bytes:
         return r.read()
 
 
-def _pick(versions: dict) -> dict:
-    """Newest version that's at least MIN_AGE_DAYS old (falls back to the oldest available)."""
-    vs = sorted(versions.values(), key=lambda v: -v["manifest"]["versionCode"])
-    cutoff = (time.time() - MIN_AGE_DAYS * 86400) * 1000
-    for v in vs:
-        if v.get("added", 0) <= cutoff:
-            return v
-    return vs[-1]
-
-
 def status(h: Headset) -> dict:
     installed = h.adb.packages(h.adb.current_user())
-    return {"microg": all(p in installed for p in MICROG_PACKAGES), "aurora": AURORA in installed,
-            "note": NOTE}
+    return {"aurora": AURORA in installed, "note": NOTE}
 
 
 def install_play_apps(h: Headset, progress=lambda m: None) -> dict:
+    """Install Aurora Store from F-Droid for the active profile."""
     user = h.adb.current_user()
-    progress("Reading microG's repository index…")
-    index = json.loads(_get(MICROG_REPO + "/index-v2.json"))
-    done = {}
+    progress("Downloading Aurora Store from F-Droid…")
+    meta = json.loads(_get(f"https://f-droid.org/api/v1/packages/{AURORA}"))
+    code = meta["suggestedVersionCode"]
     with tempfile.TemporaryDirectory() as tmp:
-        for pkg, label in MICROG_PACKAGES.items():
-            entry = index["packages"].get(pkg)
-            if not entry:
-                raise RuntimeError(f"{pkg} isn't in microG's repository")
-            v = _pick(entry["versions"])
-            name, digest = v["file"]["name"], v["file"]["sha256"]
-            progress(f"Downloading {label} {v['manifest']['versionName']}…")
-            data = _get(MICROG_REPO + name)
-            if hashlib.sha256(data).hexdigest() != digest:
-                raise RuntimeError(f"{label}: download doesn't match the repository's SHA-256. Nothing installed.")
-            apk = Path(tmp) / f"{pkg}.apk"
-            apk.write_bytes(data)
-            r = h.adb.run("install", "-r", "-g", "--user", str(user), str(apk), timeout=300)
-            if "Success" not in r.out:
-                raise RuntimeError(f"{label}: install failed: {r.text}")
-            done[pkg] = v["manifest"]["versionName"]
-            progress(f"Installed {label} (SHA-256 verified)")
-
-        progress("Downloading Aurora Store from F-Droid…")
-        meta = json.loads(_get(f"https://f-droid.org/api/v1/packages/{AURORA}"))
-        code = meta["suggestedVersionCode"]
         apk = Path(tmp) / "aurora.apk"
         apk.write_bytes(_get(f"https://f-droid.org/repo/{AURORA}_{code}.apk"))
         r = h.adb.run("install", "-r", "--user", str(user), str(apk), timeout=300)
         if "Success" not in r.out:
             raise RuntimeError(f"Aurora Store: install failed: {r.text}")
-        done[AURORA] = str(code)
-        progress("Installed Aurora Store")
-
-    # microG works better when it may run in the background
-    h.adb.shell("cmd deviceidle whitelist +com.google.android.gms")
+    done = {AURORA: str(code)}
     st = S.load(h)
     st.setdefault("extras", {})["play_apps"] = {"at": S.now(), "user": user, "versions": done}
     S.record(st, "install_play_apps", user, versions=done)
     S.save(h, st)
-    progress("Done. Open Aurora Store, choose Anonymous login, and install Play Store apps. " + NOTE)
+    progress("Installed Aurora Store. Open it and choose Anonymous to sign in. " + NOTE)
     return {"installed": done}
 
 
 def remove_play_apps(h: Headset, progress=lambda m: None) -> None:
     user = h.adb.current_user()
-    for pkg in list(MICROG_PACKAGES) + [AURORA]:
-        r = h.adb.shell(f"pm uninstall --user {user} {pkg}")
-        progress(f"{pkg}: {'removed' if 'Success' in r.out else 'not installed'}")
-    h.adb.shell("cmd deviceidle whitelist -com.google.android.gms")
+    installed = h.adb.packages(user)
+    for pkg in [AURORA, *MICROG_PACKAGES]:
+        if pkg in installed:
+            r = h.adb.shell(f"pm uninstall --user {user} {pkg}")
+            progress(f"{pkg}: {'removed' if 'Success' in r.out else 'could not remove'}")
     st = S.load(h)
     st.setdefault("extras", {}).pop("play_apps", None)
     S.record(st, "remove_play_apps", user)
     S.save(h, st)
+    progress("Aurora Store removed.")
