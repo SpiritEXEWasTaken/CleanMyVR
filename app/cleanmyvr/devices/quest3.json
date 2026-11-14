@@ -135,7 +135,12 @@
     "com.oculus.facebook",
     "com.meta.handseducationmodule",
     "com.oculus.quickpromotionservice",
-    "com.meta.federatedcomputing.oculus"
+    "com.meta.federatedcomputing.oculus",
+    "com.oculus.igvr",
+    "com.oculus.helpcenter",
+    "com.oculus.vrprivacycheckup",
+    "com.whatsapp",
+    "com.facebook.arvr.quillplayer"
   ],
   "environment": {
     "dump_command": "dumpsys -t 2 DumpsysProxy VRShell",
@@ -145,6 +150,7 @@
     ]
   },
   "notes": [
+    "Debloat a profile only after its first Meta login: removing apps before setup broke that profile's Store sign-in (token timeout) until they were restored.",
     "Wireless ADB apps such as Quest Home Switcher need Loft (Haven 2025 + Calming) as the active home.",
     "Quest briefly locks (proximity sensor) and may show an invisible profile picker when several profiles exist.",
     "Toybox (com.meta.curio.toybox) is a free Meta game, not bloat: never removed by debloat."

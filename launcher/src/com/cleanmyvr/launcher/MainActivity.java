@@ -133,6 +133,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (current.get() == this) current.clear();
+        ui.removeCallbacksAndMessages(null);   // late refreshes (covers, store names) must not run after this
         bg.shutdown();
         net.shutdownNow();
         super.onDestroy();
@@ -477,6 +478,7 @@ public class MainActivity extends Activity {
     }
 
     private void renderTabs() {
+        if (isFinishing() || isDestroyed()) return;
         boolean store = prefs.storeMode();
         libTitle.setTextColor(store ? MUTED : TEXT);
         storeTitle.setTextColor(store ? TEXT : MUTED);
@@ -526,6 +528,7 @@ public class MainActivity extends Activity {
     }
 
     void render() {
+        if (isFinishing() || isDestroyed()) return;   // a late callback; the workers are already stopped
         if (content == null) return;
         int width = scroll.getWidth();
         if (width == 0) { scroll.post(this::render); return; }

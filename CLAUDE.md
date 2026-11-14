@@ -66,6 +66,9 @@ convenience.
 - `oculuspreferences` (home environment) needs root to write; read it with `dumpsys -t 2 DumpsysProxy VRShell`.
 - `com.oculus.updater` and `com.oculus.q4bservice` can't be uninstalled or disabled (`protected`).
 - Meta's store reinstalls some removed apps (`comes_back`); Recheck reports them as drift.
+- Debloating a profile before its first Meta login broke its Store sign-in (`HzAccountManagerImpl: Error
+  awaiting token` / TimeoutException). Restoring the removed apps fixed it; debloating again after setup was fine.
+- A new profile's setup, and Meta's app updates, reinstall removed apps on every profile (`installPackageLI`).
 - Meta button → Navigator. At an empty Home it opens `NavigatorLibraryActivity`; with a panel open or in a
   VR game it opens only the system bar (`...systembar.app.SystemBarActivity`, or a bare `ViewGroup` from
   `com.oculus.panelapp.library` in games). In games `LibraryActivity` events arrive when Navigator *closes*.
