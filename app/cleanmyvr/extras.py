@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -87,12 +88,25 @@ def _vt(v: str) -> tuple:
     return tuple((list(map(int, re.findall(r"\d+", v or "")[:3])) + [0, 0, 0])[:3])
 
 
+def wireless_debugging(h: Headset) -> bool:
+    return h.adb.sh("settings get global adb_wifi_enabled") == "1"
+
+
+def set_wireless_debugging(h: Headset, on: bool) -> bool:
+    """Quest Home Switcher talks to the headset over Wireless debugging (it pairs with itself). Returns the new
+    state; Android only turns it on while the headset is on Wi-Fi."""
+    h.adb.shell(f"settings put global adb_wifi_enabled {1 if on else 0}")
+    time.sleep(2)
+    return wireless_debugging(h)
+
+
 def qhs_status(h: Headset) -> dict:
     user = h.adb.current_user()
+    wifi = wireless_debugging(h)
     if QHS not in h.adb.packages(user):
-        return {"installed": False, "version": None, "note": QHS_NOTE}
+        return {"installed": False, "version": None, "wireless": wifi, "note": QHS_NOTE}
     v = h.adb.sh(f"dumpsys package {QHS} | grep -m1 versionName").split("=")[-1].strip()
-    return {"installed": True, "version": v, "note": QHS_NOTE}
+    return {"installed": True, "version": v, "wireless": wifi, "note": QHS_NOTE}
 
 
 def _qhs_release() -> dict:
@@ -146,6 +160,10 @@ def install_qhs(h: Headset, progress=lambda m: None) -> dict:
                 raise RuntimeError(f"Quest Home Switcher: install failed: {r.text}")
         version = rel["tag"].lstrip("v")
         progress(f"Installed Quest Home Switcher {version} (permissions granted, so no Wireless ADB pairing needed)")
+    if set_wireless_debugging(h, True):
+        progress("Wireless debugging is on (Quest Home Switcher pairs with it by itself)")
+    else:
+        progress("Couldn't turn on Wireless debugging: connect the headset to Wi-Fi, then press this button again.")
     h.adb.shell(f"am start --user {user} -n {QHS_ACTIVITY}")
     progress("Opened it in the headset: it finishes setting itself up there. Pick a Home and press Apply.")
     s = S.load(h)
@@ -158,6 +176,9 @@ def install_qhs(h: Headset, progress=lambda m: None) -> dict:
 def remove_qhs(h: Headset, progress=lambda m: None) -> None:
     user = h.adb.current_user()
     r = h.adb.shell(f"pm uninstall --user {user} {QHS}")
+    # Nothing else needs it: don't leave the headset accepting debugging connections over the network.
+    if not set_wireless_debugging(h, False):
+        progress("Wireless debugging turned off")
     s = S.load(h)
     s.setdefault("extras", {}).pop("quest_home_switcher", None)
     S.record(s, "remove_quest_home_switcher", user)

@@ -147,7 +147,7 @@ async function extrasPage() {
   const s = await api.extras_status();
   $("#ex-box").innerHTML = `<b>Aurora Store: ${s.aurora ? "installed" : "not installed"}</b>
     <p class="muted small">${esc(s.note)}</p>`;
-  $("#qhs-box").innerHTML = `<b>${s.qhs.installed ? "Installed (" + esc(s.qhs.version) + ")" : "Not installed"}</b>
+  $("#qhs-box").innerHTML = `<b>${s.qhs.installed ? "Installed (" + esc(s.qhs.version) + ")" : "Not installed"} · Wireless debugging: ${s.qhs.wireless ? "on" : "off"}</b>
     <p class="muted small">${esc(s.qhs.note)}</p>`;
   $("#btn-qhs-install").textContent = s.qhs.installed ? "Finish setup / update" : "Set up Quest Home Switcher";
   $("#btn-qhs-remove").disabled = !s.qhs.installed;

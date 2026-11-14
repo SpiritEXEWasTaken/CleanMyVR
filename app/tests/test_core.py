@@ -230,6 +230,7 @@ class QuestHomeSwitcher(unittest.TestCase):
         h = headset(fake)
         env = {"available": True, "selected": home, "resolved": home, "loaded": home}
         with mock.patch.object(self.extras, "_get", side_effect=self.get), \
+                mock.patch.object(self.extras.time, "sleep"), \
                 mock.patch("cleanmyvr.actions.environment_status", return_value=env):
             return fake, h, self.extras.install_qhs(h)
 
@@ -239,6 +240,7 @@ class QuestHomeSwitcher(unittest.TestCase):
         args = fake.run.call_args[0]
         self.assertIn("-g", args)
         self.assertTrue(any(QHS_START in c for c in fake.log))
+        self.assertTrue(any(c == "settings put global adb_wifi_enabled 1" for c in fake.log), "wireless debugging on")
         self.assertEqual(S.load(h)["history"][-1]["action"], "install_quest_home_switcher")
 
     def test_refuses_without_loft(self):
