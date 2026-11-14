@@ -129,6 +129,18 @@ final class AppRepo {
         return m;
     }
 
+    boolean isInstalled(String pkg) {
+        try { pm.getApplicationInfo(pkg, 0); return true; } catch (Exception e) { return false; }
+    }
+
+    String label(String pkg) {
+        try { return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(); } catch (Exception e) { return pkg; }
+    }
+
+    Drawable icon(String pkg) {
+        try { return pm.getApplicationIcon(pkg); } catch (Exception e) { return pm.getDefaultActivityIcon(); }
+    }
+
     boolean launch(String pkg) {
         Intent i = pm.getLaunchIntentForPackage(pkg);
         if (i == null) {

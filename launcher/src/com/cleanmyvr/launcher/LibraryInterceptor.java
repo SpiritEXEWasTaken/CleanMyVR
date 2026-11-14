@@ -13,16 +13,27 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import java.util.List;
 
 /**
  * Replaces Meta's Library: when the Library/Navigator panel opens, open our launcher instead.
- * Pressing the Meta button while the launcher is showing closes it (toggle).
- * Only looks at the package/class name of windows that open.
+ * Pressing the Meta button while the launcher is showing closes it (toggle). Inside a VR game the launcher
+ * opens with its in-game menu (Open another app / Restart / Close).
+ * Only looks at the package/class name of windows that open, except for a few seconds after you press
+ * Close/Restart App: then it reads Android's App info screen for that app to press Force stop for you.
  */
 public class LibraryInterceptor extends AccessibilityService {
     private static final String TAG = "CleanMyVrLauncher";
     private final Handler main = new Handler(Looper.getMainLooper());
     private long lastFire;
+    private static java.lang.ref.WeakReference<LibraryInterceptor> instance = new java.lang.ref.WeakReference<>(null);
+
+    // A Force stop we're pressing for the user (see forceStop).
+    private String stopPkg, stopLabel;
+    private Runnable stopDone;
+    private long stopDeadline;
+    private boolean stopClicked;
 
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { AppRepo.invalidate(); }
@@ -31,6 +42,7 @@ public class LibraryInterceptor extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
+        instance = new java.lang.ref.WeakReference<>(this);
         IntentFilter f = new IntentFilter();
         f.addAction(Intent.ACTION_PACKAGE_ADDED);
         f.addAction(Intent.ACTION_PACKAGE_REMOVED);
@@ -50,9 +62,10 @@ public class LibraryInterceptor extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
-        if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence p = e.getPackageName(), c = e.getClassName();
-        if (p == null || c == null) return;
+        if (p == null) return;
+        if (stopPkg != null && p.toString().equals("com.android.settings")) { pressForceStop(); return; }
+        if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || c == null) return;
         String pkg = p.toString(), cls = c.toString();
         if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "window " + pkg + " / " + cls);
 
@@ -63,10 +76,10 @@ public class LibraryInterceptor extends AccessibilityService {
         if (now - lastFire < 600) return;
         lastFire = now;
 
-        // Inside a VR game the Meta button opens Navigator to quit/resume it: leave that alone.
+        // Inside a VR game the Meta button opens Navigator: show our in-game menu instead (unless turned off).
         String game = vrAppInFront();
-        if (game != null) {
-            Log.i(TAG, "Navigator opened over " + game + ": leaving it to Meta");
+        if (game != null && !new Prefs(this).inGameMenu()) {
+            Log.i(TAG, "Navigator opened over " + game + ": in-game menu is off, leaving it to Meta");
             return;
         }
 
@@ -79,10 +92,80 @@ public class LibraryInterceptor extends AccessibilityService {
             return;
         }
 
-        Log.i(TAG, "Meta Library opened (" + cls + "), opening launcher instead");
+        Log.i(TAG, "Meta Library opened (" + cls + "), opening launcher instead" + (game != null ? " with in-game menu for " + game : ""));
         main.postDelayed(() -> startActivity(new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                .putExtra(MainActivity.EXTRA_FROM_LIBRARY, true)), 80);
+                .putExtra(MainActivity.EXTRA_FROM_LIBRARY, true)
+                .putExtra(MainActivity.EXTRA_GAME, game)), 80);
+    }
+
+    // ------------------------------------------------------------------ Close / Restart App
+
+    /**
+     * Force-stop an app the way a person would: open its Android App info page and press Force stop, then OK.
+     * (Apps aren't allowed to stop other apps directly.) onDone gets true when it worked; false means the
+     * App info page was left open for the user to finish.
+     */
+    static boolean forceStop(android.content.Context c, String pkg, String label, java.util.function.Consumer<Boolean> onDone) {
+        LibraryInterceptor s = instance.get();
+        if (s == null) return false;
+        s.stopPkg = pkg;
+        s.stopLabel = label;
+        s.stopClicked = false;
+        s.stopDeadline = SystemClock.elapsedRealtime() + 8000;
+        s.stopDone = () -> onDone.accept(true);
+        s.main.postDelayed(() -> {
+            if (pkg.equals(s.stopPkg)) {               // never found the button: leave the page for the user
+                Log.w(TAG, "Force stop: button not found for " + pkg + ", leaving App info open");
+                s.stopPkg = null;
+                onDone.accept(false);
+            }
+        }, 8000);
+        if (!AppRepo.openAppInfo(c, pkg)) { s.stopPkg = null; return false; }
+        Log.i(TAG, "Force stop: opened App info for " + pkg);
+        return true;
+    }
+
+    private void pressForceStop() {
+        if (SystemClock.elapsedRealtime() > stopDeadline) { stopPkg = null; return; }
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+        if (!stopClicked) {
+            // Only press anything on the App info page of the app the user chose (its name is on the page).
+            if (stopLabel != null && root.findAccessibilityNodeInfosByText(stopLabel).isEmpty()
+                    && root.findAccessibilityNodeInfosByText(stopPkg).isEmpty()) return;
+            AccessibilityNodeInfo b = find(root, "com.android.settings:id/button3", "Force stop");
+            if (b == null) return;
+            if (!b.isEnabled()) { finishStop("already stopped"); return; }   // greyed out = not running
+            if (clickable(b).performAction(AccessibilityNodeInfo.ACTION_CLICK)) stopClicked = true;
+        } else {
+            AccessibilityNodeInfo ok = find(root, "android:id/button1", "OK");
+            if (ok != null && clickable(ok).performAction(AccessibilityNodeInfo.ACTION_CLICK)) finishStop("stopped");
+        }
+    }
+
+    private void finishStop(String how) {
+        Log.i(TAG, "Force stop: " + stopPkg + " " + how);
+        Runnable done = stopDone;
+        stopPkg = null;
+        stopDone = null;
+        main.postDelayed(() -> {
+            performGlobalAction(GLOBAL_ACTION_BACK);   // close App info
+            if (done != null) main.postDelayed(done, 400);
+        }, 300);
+    }
+
+    private static AccessibilityNodeInfo find(AccessibilityNodeInfo root, String id, String text) {
+        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId(id);
+        for (AccessibilityNodeInfo n : l) if (n.getText() == null || text.equalsIgnoreCase(n.getText().toString())) return n;
+        for (AccessibilityNodeInfo n : root.findAccessibilityNodeInfosByText(text))
+            if (n.getText() != null && text.equalsIgnoreCase(n.getText().toString().trim())) return n;
+        return null;
+    }
+
+    private static AccessibilityNodeInfo clickable(AccessibilityNodeInfo n) {
+        for (AccessibilityNodeInfo x = n; x != null; x = x.getParent()) if (x.isClickable()) return x;
+        return n;
     }
 
     static boolean isMetaLibrary(String pkg, String cls) {

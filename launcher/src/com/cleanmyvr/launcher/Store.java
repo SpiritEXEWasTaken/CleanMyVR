@@ -48,7 +48,7 @@ final class Store {
      * most once a day, so new picks show up without updating the launcher.
      */
     static final String CATALOG_URL =
-            "https://raw.githubusercontent.com/SpiritEXEWasTaken/CleanMyVR/main/launcher/assets/catalog.json";
+            "https://raw.githubusercontent.com/SpiritEXEWasTaken/launcher-appstore/main/catalog.json";
     private static final long CATALOG_TTL = 24L * 3600 * 1000;
 
     List<Source> defaults() {

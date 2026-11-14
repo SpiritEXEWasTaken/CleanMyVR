@@ -2,5 +2,5 @@
 <resources>
     <string name="app_name">Launcher</string>
     <string name="interceptor_label">Launcher: replace Library</string>
-    <string name="interceptor_desc">Opens your custom launcher whenever Meta\'s Library would open. Reads only which panel opened; no content.</string>
+    <string name="interceptor_desc">Opens your custom launcher whenever Meta\'s Library would open, with an in-game menu inside VR games. Reads only which panel opened. Only when you press Close or Restart App does it read that app\'s Android App info screen, to press Force stop for you.</string>
 </resources>

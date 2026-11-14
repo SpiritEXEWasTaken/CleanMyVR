@@ -55,6 +55,8 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     static final String EXTRA_FROM_LIBRARY = "from_library";
+    /** Package of the VR app that's running behind the launcher: shows the in-game menu. */
+    static final String EXTRA_GAME = "game";
     static final String TAB_FAV = "fav", TAB_ALL = "all", TAB_VR = "vr", TAB_2D = "2d", TAB_SIDE = "side";
     private static final String CAT_PREFIX = "cat:";
     private static final int REQ_COVER = 1, REQ_WALLPAPER = 2;
@@ -83,6 +85,9 @@ public class MainActivity extends Activity {
     private StorePage storePage;
     private TextView libTitle, storeTitle;
     private HorizontalScrollView tabsScroll;
+    private FrameLayout rootFrame;
+    private View gameMenu;
+    private TextView gameStatus;
 
     /** The live launcher window, so the Meta button can close it (see LibraryInterceptor). */
     private static java.lang.ref.WeakReference<MainActivity> current = new java.lang.ref.WeakReference<>(null);
@@ -110,7 +115,8 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (prefs.storeMode()) setStoreMode(false);   // Back from the Store goes to the Library
+        if (gameMenu != null) finish();                // Back in the in-game menu = resume the game
+        else if (prefs.storeMode()) setStoreMode(false);   // Back from the Store goes to the Library
         else super.onBackPressed();
     }
 
@@ -136,13 +142,16 @@ public class MainActivity extends Activity {
         tab = prefs.tab();
         storePage = new StorePage(this);
         getWindow().getDecorView().setBackgroundColor(BG);
-        setContentView(buildShell());
+        rootFrame = new FrameLayout(this);
+        rootFrame.addView(buildShell(), new FrameLayout.LayoutParams(-1, -1));
+        setContentView(rootFrame);
         List<AppRepo.App> cached = AppRepo.cached();
         if (cached != null) {
             apps = cached;
             renderTabs();
             render();
         }
+        showGameMenu(getIntent().getStringExtra(EXTRA_GAME));
     }
 
     @Override
@@ -227,6 +236,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        setIntent(intent);
+        showGameMenu(intent.getStringExtra(EXTRA_GAME));
         reload();
     }
 
@@ -887,6 +898,13 @@ public class MainActivity extends Activity {
         covers.add("Use built-in app banners").setCheckable(true).setChecked(prefs.useAppBanners())
                 .setOnMenuItemClickListener(i -> { prefs.setUseAppBanners(!prefs.useAppBanners()); render(); return true; });
         menu.add("Android settings").setOnMenuItemClickListener(i -> { openAndroidSettings(); return true; });
+        menu.add("In-game menu (Meta button in VR games)").setCheckable(true).setChecked(prefs.inGameMenu())
+                .setOnMenuItemClickListener(i -> {
+                    prefs.setInGameMenu(!prefs.inGameMenu());
+                    toast(prefs.inGameMenu() ? "The Meta button opens the in-game menu inside VR games"
+                            : "Inside VR games the Meta button opens Meta's menu again");
+                    return true;
+                });
         menu.add("Open Meta's Library once").setOnMenuItemClickListener(i -> { openMetaLibrary(); return true; });
         menu.add("Refresh").setOnMenuItemClickListener(i -> { coverCache.clear(); reload(); return true; });
         m.show();
@@ -1016,6 +1034,120 @@ public class MainActivity extends Activity {
     /** The name shown when you haven't renamed an app: its store name if known, else its own name. */
     String autoName(AppRepo.App a) {
         return a.storeName != null && prefs.onlineInfo() ? a.storeName : a.label;
+    }
+
+    // ------------------------------------------------------------------ in-game menu
+
+    /** Show the in-game menu for the VR app running behind the launcher (null hides it). */
+    void showGameMenu(String pkg) {
+        if (gameMenu != null) { rootFrame.removeView(gameMenu); gameMenu = null; }
+        if (pkg == null || !repo.isInstalled(pkg)) return;
+        AppRepo.App app = null;
+        if (apps != null) for (AppRepo.App a : apps) if (a.pkg.equals(pkg)) app = a;
+        String name = app != null ? displayName(app) : repo.label(pkg);
+
+        FrameLayout ov = new FrameLayout(this);
+        ov.setClickable(true);                       // nothing behind the menu reacts to clicks
+        // Background: the game's own cover/banner (or icon), heavily blurred and dimmed.
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        Bitmap cover = coverCache.get(pkg);
+        if (cover == null) { File f = coverSource(this, pkg); if (f.exists()) cover = decodeSampled(f, 640); }
+        if (cover != null) art.setImageBitmap(cover);
+        else if (app != null && app.banner != null) art.setImageDrawable(app.banner);
+        else art.setImageDrawable(repo.icon(pkg));
+        if (android.os.Build.VERSION.SDK_INT >= 31)
+            art.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(36), dp(36), android.graphics.Shader.TileMode.CLAMP));
+        ov.addView(art, new FrameLayout.LayoutParams(-1, -1));
+        View scrim = new View(this);
+        scrim.setBackgroundColor(0xB80E0F13);
+        ov.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(dp(40), dp(34), dp(40), dp(28));
+        card.setBackground(round(0xF01A1D24, dp(30)));
+        ImageView icon = new ImageView(this);
+        icon.setImageDrawable(repo.icon(pkg));
+        card.addView(icon, new LinearLayout.LayoutParams(dp(84), dp(84)));
+        TextView title = text(name, 28, TEXT, true);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, dp(14), 0, 0);
+        card.addView(title);
+        TextView sub = text(pkg, 14, MUTED, false);
+        sub.setTypeface(Typeface.MONOSPACE);
+        sub.setPadding(0, dp(4), 0, dp(22));
+        card.addView(sub);
+
+        card.addView(menuButton("Open Another App", ACCENT, BG, v -> showGameMenu(null)));
+        card.addView(menuButton("Restart App", SURFACE_HI, TEXT, v -> stopApp(pkg, name, true)));
+        card.addView(menuButton("Close App", SURFACE_HI, 0xFFFF7A7A, v -> stopApp(pkg, name, false)));
+
+        gameStatus = text("", 14, MUTED, false);
+        gameStatus.setGravity(Gravity.CENTER);
+        gameStatus.setPadding(0, dp(10), 0, 0);
+        card.addView(gameStatus);
+
+        LinearLayout links = new LinearLayout(this);
+        links.setGravity(Gravity.CENTER);
+        links.setPadding(0, dp(8), 0, 0);
+        TextView resume = text("Resume", 15, MUTED, true);
+        TextView meta = text("Meta menu", 15, MUTED, true);
+        resume.setPadding(dp(16), dp(8), dp(16), dp(8));
+        meta.setPadding(dp(16), dp(8), dp(16), dp(8));
+        resume.setOnClickListener(v -> finish());
+        meta.setOnClickListener(v -> {
+            prefs.pauseTakeover(15_000);
+            toast("Press the Meta button for Meta's menu");
+            finish();
+        });
+        links.addView(resume);
+        links.addView(meta);
+        card.addView(links);
+
+        ov.addView(card, new FrameLayout.LayoutParams(dp(520), -2, Gravity.CENTER));
+        rootFrame.addView(ov, new FrameLayout.LayoutParams(-1, -1));
+        gameMenu = ov;
+    }
+
+    private TextView menuButton(String label, int bg, int fg, View.OnClickListener click) {
+        TextView b = text(label, 18, fg, true);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(20), dp(16), dp(20), dp(16));
+        b.setBackground(round(bg, dp(18)));
+        b.setOnClickListener(click);
+        b.setOnHoverListener((v, e) -> {
+            if (e.getAction() == MotionEvent.ACTION_HOVER_ENTER) v.setAlpha(0.85f);
+            else if (e.getAction() == MotionEvent.ACTION_HOVER_EXIT) v.setAlpha(1f);
+            return false;
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.topMargin = dp(12);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    /** Close (or restart) the app behind the launcher by pressing Force stop on its App info page. */
+    private void stopApp(String pkg, String name, boolean restart) {
+        if (gameStatus != null) gameStatus.setText(restart ? "Restarting…" : "Closing…");
+        boolean started = LibraryInterceptor.forceStop(this, pkg, repo.label(pkg), ok -> ui.post(() -> {
+            if (!ok) {
+                if (gameStatus != null) gameStatus.setText("");
+                toast("Press Force stop, then OK" + (restart ? ", then open " + name + " again" : ""));
+                return;
+            }
+            showGameMenu(null);
+            if (restart) {
+                if (!repo.launch(pkg)) toast("Couldn't open " + name);
+            } else {
+                toast(name + " closed");
+            }
+        }));
+        if (!started) {
+            if (gameStatus != null) gameStatus.setText("");
+            toast("Turn on Library takeover (the launcher's accessibility service) to close apps");
+        }
     }
 
     // ------------------------------------------------------------------ SteamGridDB covers

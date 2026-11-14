@@ -196,4 +196,8 @@ final class Prefs {
     /** Lets the user open Meta's Library on purpose without being bounced back. */
     void pauseTakeover(long ms) { sp.edit().putLong("pause_until", System.currentTimeMillis() + ms).apply(); }
     boolean takeoverPaused() { return System.currentTimeMillis() < sp.getLong("pause_until", 0); }
+
+    /** Meta button inside a VR game opens the launcher's in-game menu (instead of Meta's Navigator). */
+    boolean inGameMenu() { return sp.getBoolean("in_game_menu", true); }
+    void setInGameMenu(boolean on) { sp.edit().putBoolean("in_game_menu", on).apply(); }
 }

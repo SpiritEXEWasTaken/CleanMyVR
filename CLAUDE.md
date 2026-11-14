@@ -31,7 +31,11 @@ convenience.
 - `updater.py` (self-update from GitHub releases), `adb.py` (all adb calls), `device.py` (profile matching, `is_never_remove`), `state.py` (on-headset
   record), `actions.py`, `backup.py`, `launcher.py`, `extras.py`, `cli.py`, `gui/` (pywebview `Api` +
   plain `gui/web/` HTML/CSS/JS; GUI and CLI must both expose new features)
-- `launcher/src/com/cleanmyvr/launcher/`: Java launcher; `launcher/assets/catalog.json` store picks
+- `launcher/src/com/cleanmyvr/launcher/`: Java launcher. Store picks live in the separate repo
+  SpiritEXEWasTaken/launcher-appstore (`catalog.json`, fetched daily via `Store.CATALOG_URL`; edit it there).
+  `launcher/assets/catalog.json` is only the offline fallback; releases refresh it from that repo
+- The accessibility service (`LibraryInterceptor`) may read window content only for the Force stop flow
+  (`forceStop`, App info of the app the user chose, time-limited). Keep it that way; README promises it
 - Tests use `FakeAdb` in `tests/test_core.py`; extend it rather than calling a real device in tests
 
 ## Hard rules

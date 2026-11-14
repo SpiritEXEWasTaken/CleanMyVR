@@ -4,7 +4,8 @@ Thanks for helping! CleanMyVR was built and tested on **one Meta Quest 3**, so t
 can do is **verify it on another headset** (Quest 2, Quest 3S, Quest Pro, or a newer Horizon OS build).
 [docs/ADDING_DEVICES.md](docs/ADDING_DEVICES.md) walks you through it step by step.
 
-Other welcome contributions: bug reports (with your headset model and build), launcher store picks,
+Other welcome contributions: bug reports (with your headset model and build), Store picks (in
+[launcher-appstore](https://github.com/SpiritEXEWasTaken/launcher-appstore)),
 translations of the UI text, and fixes.
 
 ## How the project is laid out
@@ -19,7 +20,7 @@ translations of the UI text, and fixes.
 | `app/cleanmyvr/cli.py`, `app/cleanmyvr/gui/` | Guided command line, and the window (`gui/web/` is plain HTML/CSS/JS) |
 | `app/tests/` | Unit tests that use a fake headset, so you don't need one to run them |
 | `launcher/` | The on-headset launcher app (Java, built with plain Android SDK tools, no Gradle) |
-| `launcher/assets/catalog.json` | The launcher store's recommended apps |
+| `launcher/assets/catalog.json` | Offline copy of the Store's recommended apps. The real list is in [launcher-appstore](https://github.com/SpiritEXEWasTaken/launcher-appstore); suggest apps there |
 | `envstub/` | The white-sky Home fix (repackages an installed environment) |
 | `scripts/` | The original bash scripts. They still work, but the app replaces them |
 

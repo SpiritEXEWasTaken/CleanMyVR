@@ -32,6 +32,12 @@
       "pkg": "com.limelight"
     },
     {
+      "url": "https://github.com/redphx/better-xcloud-android",
+      "name": "Better xCloud",
+      "description": "Xbox Cloud Gaming and Xbox Remote Play with extra features; supports Quest",
+      "pkg": "com.redphx.betterxc"
+    },
+    {
       "url": "https://github.com/localsend/localsend",
       "name": "LocalSend",
       "description": "Send files between your devices over Wi-Fi",

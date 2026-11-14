@@ -79,8 +79,15 @@ cd launcher
 **How the takeover works:** Horizon OS's Home (`vrshell`) also draws every panel,
 passthrough and the boundary, so it can't be replaced without root. Instead, a small
 accessibility service watches for Meta's Library panel opening, closes it, and opens this
-launcher. It only reads the name of the panel that opened. To use Meta's Library on
-purpose, use **⋯ → Open Meta's Library once**.
+launcher. It reads the name of the panel that opened, nothing else (except for Close/Restart App, below). To use
+Meta's Library on purpose, use **⋯ → Open Meta's Library once**.
+
+**In-game menu:** inside a VR game, the Meta button opens the launcher too, over a blurred background
+made from the game's own cover art. A menu shows the game's name and package and has **Open Another
+App**, **Restart App** and **Close App**, plus **Resume** and **Meta menu** (Meta's own menu, for quick
+settings). Apps aren't allowed to close other apps, so Close/Restart open the game's Android App info
+page and press **Force stop** for you. Only then does the service read a screen's content: that one App
+info page, for a few seconds. Turn the in-game menu off in ⋯ → In-game menu.
 
 - **Favorites:** tap the ☆ on a tile, or long-press → Add to Favorites
 - **Categories:** "+ New category" tab, or long-press a game → Categories. Long-press a
@@ -95,9 +102,11 @@ purpose, use **⋯ → Open Meta's Library once**.
   (with a free API key from steamgriddb.com → Preferences → API). Or Upload cover image…, or
   ⋯ → Covers → Fetch missing game covers. Android TV banners can be turned off in ⋯ → Covers.
   Files live in `/sdcard/Android/data/com.cleanmyvr.launcher/files/covers/<package>.img`
-- **Store:** the Store tab installs and updates apps straight from GitHub, GitLab or
+- **Store:** the recommended apps come from
+  [launcher-appstore](https://github.com/SpiritEXEWasTaken/launcher-appstore), fetched once a day, so new
+  picks show up without a launcher update (suggest apps there). The Store tab installs and updates apps straight from GitHub, GitLab or
   Codeberg/Gitea/Forgejo releases, like Obtainium. It comes with Quest-friendly picks (Wolvic,
-  ALVR, QuestCraft, Moonlight, LocalSend, NewPipe, Droid-ify, SideQuest, Quest Home Switcher, VirtualBoyGo, Aurora Store), and "Add source" takes any repo
+  ALVR, QuestCraft, Moonlight, Better xCloud, LocalSend, NewPipe, Droid-ify, SideQuest, Quest Home Switcher, VirtualBoyGo, Aurora Store, and the launcher itself), and "Add source" takes any repo
   link, an `f-droid.org/packages/<app>` link, (plus an optional APK-name filter for projects that ship several APKs) or a direct
   "always the latest APK" link; updates show up when that link starts pointing at a new file
 - **Store names, banners and categories:** many games have a placeholder Android name (Animal Rivals

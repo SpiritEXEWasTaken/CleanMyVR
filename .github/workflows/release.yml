@@ -58,6 +58,14 @@ jobs:
           fi
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
           echo "KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+      - name: Bundle the latest store catalog (offline fallback; the launcher also fetches it daily)
+        run: |
+          url=https://raw.githubusercontent.com/SpiritEXEWasTaken/launcher-appstore/main/catalog.json
+          if curl -fsSL "$url" -o "$RUNNER_TEMP/catalog.json" && python3 -c "import json,sys; assert json.load(open(sys.argv[1]))['apps']" "$RUNNER_TEMP/catalog.json"; then
+            cp "$RUNNER_TEMP/catalog.json" launcher/assets/catalog.json
+          else
+            echo "::warning::Couldn't fetch the store catalog; bundling the committed copy."
+          fi
       - name: Build launcher.apk
         env:
           KEYSTORE_PASS: ${{ secrets.LAUNCHER_KEYSTORE_PASS }}
