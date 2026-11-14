@@ -74,7 +74,12 @@ public class LibraryInterceptor extends AccessibilityService {
 
         // The Meta button opens Navigator: as the Library at an empty Home, but only as Meta's system bar
         // when a panel is open or inside a VR game. Either one means "Meta button pressed".
-        if (isMetaLibrary(pkg, cls) || isSystemBar(pkg, cls)) onLibrary(cls, null);
+        if (isMetaLibrary(pkg, cls) || isSystemBar(pkg, cls)) { onLibrary(cls, null); return; }
+        // Inside a VR game Navigator's first window is sometimes just a ViewGroup from the Library app.
+        if (pkg.equals("com.oculus.panelapp.library") || pkg.equals("com.oculus.systemux")) {
+            String game = vrAppInFront();
+            if (game != null) onLibrary(cls, game);
+        }
     }
 
     static boolean isSystemBar(String pkg, String cls) {
@@ -149,7 +154,20 @@ public class LibraryInterceptor extends AccessibilityService {
                 onDone.accept(false);
             }
         }, 8000);
-        if (!AppRepo.openAppInfo(c, pkg)) { s.stopPkg = null; return false; }
+        boolean opened;
+        if (c instanceof android.app.Activity) {
+            // In the launcher's own task: bringing the launcher back then closes App info with it.
+            try {
+                c.startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + pkg)).setPackage("com.android.settings"));
+                opened = true;
+            } catch (Exception e) {
+                opened = AppRepo.openAppInfo(c, pkg);
+            }
+        } else {
+            opened = AppRepo.openAppInfo(c, pkg);
+        }
+        if (!opened) { s.stopPkg = null; return false; }
         Log.i(TAG, "Force stop: opened App info for " + pkg);
         s.main.postDelayed(s.stopPoll, 500);
         return true;
@@ -197,6 +215,16 @@ public class LibraryInterceptor extends AccessibilityService {
             }
         } catch (Exception ignored) { }
         return out;
+    }
+
+    private boolean settingsFocused() {
+        try {
+            for (android.view.accessibility.AccessibilityWindowInfo w : getWindows()) {
+                AccessibilityNodeInfo r = w.getRoot();
+                if (w.isFocused() && r != null && "com.android.settings".contentEquals(r.getPackageName())) return true;
+            }
+        } catch (Exception ignored) { }
+        return false;
     }
 
     private static String nodeText(AccessibilityNodeInfo n) {
@@ -248,10 +276,29 @@ public class LibraryInterceptor extends AccessibilityService {
         Runnable done = stopDone;
         stopPkg = null;
         stopDone = null;
-        main.postDelayed(() -> {
-            performGlobalAction(GLOBAL_ACTION_BACK);   // close App info
-            if (done != null) main.postDelayed(done, 400);
-        }, 300);
+        main.postDelayed(() -> closeSettings(done, 0), 500);
+    }
+
+    /**
+     * Close the App info page we opened. A single Back right after OK gets eaten by the closing dialog, so:
+     * wait for the dialog to go, press the page's own "Navigate up" arrow (or Back), and check it's gone.
+     */
+    private void closeSettings(Runnable done, int attempt) {
+        List<AccessibilityNodeInfo> roots = settingsRoots();
+        if (roots.isEmpty() || attempt >= 6) {
+            Log.i(TAG, "Force stop: " + (roots.isEmpty() ? "App info closed" : "App info didn't close") + " after " + attempt + " tries");
+            if (done != null) main.postDelayed(done, 200);
+            return;
+        }
+        boolean dialog = false;
+        for (AccessibilityNodeInfo r : roots) if (findText(r, "OK") != null || findText(r, "Cancel") != null) dialog = true;
+        if (!dialog) {
+            AccessibilityNodeInfo up = null;
+            for (AccessibilityNodeInfo r : roots) if (up == null) up = findText(r, "Navigate up");
+            if ((up == null || !clickable(up).performAction(AccessibilityNodeInfo.ACTION_CLICK)) && settingsFocused())
+                performGlobalAction(GLOBAL_ACTION_BACK);   // only when Back would reach Settings, not the launcher
+        }
+        main.postDelayed(() -> closeSettings(done, attempt + 1), 400);
     }
 
     private static AccessibilityNodeInfo clickable(AccessibilityNodeInfo n) {

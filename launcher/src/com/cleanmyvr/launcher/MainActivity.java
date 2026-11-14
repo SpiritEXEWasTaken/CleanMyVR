@@ -1157,6 +1157,8 @@ public class MainActivity extends Activity {
                 toast("Press Force stop, then OK" + (restart ? ", then open " + name + " again" : ""));
                 return;
             }
+            // The launcher is singleTask: starting it again clears whatever is stacked on it (App info).
+            startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
             showGameMenu(null);
             if (restart) {
                 if (!repo.launch(pkg)) toast("Couldn't open " + name);
