@@ -57,6 +57,8 @@ public class MainActivity extends Activity {
     static final String EXTRA_FROM_LIBRARY = "from_library";
     /** Package of the VR app that's running behind the launcher: shows the in-game menu. */
     static final String EXTRA_GAME = "game";
+    /** Meta pressed while the launcher was showing: come forward (dismisses Navigator), then close. */
+    static final String EXTRA_CLOSE = "close";
     static final String TAB_FAV = "fav", TAB_ALL = "all", TAB_VR = "vr", TAB_2D = "2d", TAB_SIDE = "side";
     private static final String CAT_PREFIX = "cat:";
     private static final int REQ_COVER = 1, REQ_WALLPAPER = 2, REQ_APK = 3;
@@ -156,6 +158,7 @@ public class MainActivity extends Activity {
             render();
         }
         showGameMenu(getIntent().getStringExtra(EXTRA_GAME));
+        if (getIntent().getBooleanExtra(EXTRA_CLOSE, false)) ui.postDelayed(this::finish, 250);
     }
 
     @Override
@@ -241,6 +244,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (intent.getBooleanExtra(EXTRA_CLOSE, false)) { ui.postDelayed(this::finish, 250); return; }
         setIntent(intent);
         showGameMenu(intent.getStringExtra(EXTRA_GAME));
         reload();

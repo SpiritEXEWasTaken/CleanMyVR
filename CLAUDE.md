@@ -66,4 +66,12 @@ convenience.
 - `oculuspreferences` (home environment) needs root to write; read it with `dumpsys -t 2 DumpsysProxy VRShell`.
 - `com.oculus.updater` and `com.oculus.q4bservice` can't be uninstalled or disabled (`protected`).
 - Meta's store reinstalls some removed apps (`comes_back`); Recheck reports them as drift.
+- Meta button → Navigator. At an empty Home it opens `NavigatorLibraryActivity`; with a panel open or in a
+  VR game it opens only the system bar (`...systembar.app.SystemBarActivity`, or a bare `ViewGroup` from
+  `com.oculus.panelapp.library` in games). In games `LibraryActivity` events arrive when Navigator *closes*.
+- Navigator ignores `GLOBAL_ACTION_BACK` and `GLOBAL_ACTION_HOME`; an app coming to the front dismisses it
+  (the launcher's toggle starts itself with `EXTRA_CLOSE`, then finishes).
+- Settings' App info is Compose (`spa.SpaActivity`): no view IDs, and `findAccessibilityNodeInfosByText`
+  misses text; walk the node tree. Its confirm dialog is a separate window. Opened from an Activity (no
+  NEW_TASK) it joins the launcher's task, so relaunching the singleTask launcher closes it.
 - `com.android.settings/.Settings` isn't exported to apps; open App info (`ACTION_APPLICATION_DETAILS_SETTINGS`) instead.

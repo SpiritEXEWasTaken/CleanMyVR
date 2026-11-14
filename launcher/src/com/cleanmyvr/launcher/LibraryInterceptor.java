@@ -127,10 +127,12 @@ public class LibraryInterceptor extends AccessibilityService {
         performGlobalAction(GLOBAL_ACTION_BACK);
 
         if (MainActivity.wasInFront(now)) {
-            Log.i(TAG, "Meta button pressed while launcher showing: closing launcher");
-            main.postDelayed(MainActivity::closeIfOpen, 150);
-            // Like Meta's own menus: one press just closes it. Close Navigator too if it's still showing.
-            main.postDelayed(() -> { if (navigatorFocused()) performGlobalAction(GLOBAL_ACTION_BACK); }, 500);
+            Log.i(TAG, "Meta button pressed while launcher showing: closing launcher (and Navigator)");
+            // Back/Home don't close Navigator, but an app coming to the front does: bring the launcher forward
+            // for a moment (that dismisses Navigator), and let it close itself right after.
+            main.postDelayed(() -> startActivity(new Intent(this, MainActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    .putExtra(MainActivity.EXTRA_CLOSE, true)), 80);
             return;
         }
 
