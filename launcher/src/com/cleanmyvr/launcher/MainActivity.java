@@ -86,7 +86,9 @@ public class MainActivity extends Activity {
     private TextView libTitle, storeTitle;
     private HorizontalScrollView tabsScroll;
     private FrameLayout rootFrame;
-    private View gameMenu;
+    private View gameMenu, backToGame;
+    private String gamePkg;
+    private boolean stopAttempted;   // after Close/Restart, coming back means the game is gone (or being dealt with)
     private TextView gameStatus;
 
     /** The live launcher window, so the Meta button can close it (see LibraryInterceptor). */
@@ -158,6 +160,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        if (stopAttempted) { stopAttempted = false; showGameMenu(null); }
         if (AppRepo.stale()) {
             reload();
         } else {
@@ -1041,7 +1044,9 @@ public class MainActivity extends Activity {
     /** Show the in-game menu for the VR app running behind the launcher (null hides it). */
     void showGameMenu(String pkg) {
         if (gameMenu != null) { rootFrame.removeView(gameMenu); gameMenu = null; }
-        if (pkg == null || !repo.isInstalled(pkg)) return;
+        if (backToGame != null) { rootFrame.removeView(backToGame); backToGame = null; }
+        if (pkg == null || !repo.isInstalled(pkg)) { gamePkg = null; return; }
+        gamePkg = pkg;
         AppRepo.App app = null;
         if (apps != null) for (AppRepo.App a : apps) if (a.pkg.equals(pkg)) app = a;
         String name = app != null ? displayName(app) : repo.label(pkg);
@@ -1080,7 +1085,7 @@ public class MainActivity extends Activity {
         sub.setPadding(0, dp(4), 0, dp(22));
         card.addView(sub);
 
-        card.addView(menuButton("Open Another App", ACCENT, BG, v -> showGameMenu(null)));
+        card.addView(menuButton("Open Another App", ACCENT, BG, v -> openAnotherApp(pkg, name)));
         card.addView(menuButton("Restart App", SURFACE_HI, TEXT, v -> stopApp(pkg, name, true)));
         card.addView(menuButton("Close App", SURFACE_HI, 0xFFFF7A7A, v -> stopApp(pkg, name, false)));
 
@@ -1111,6 +1116,20 @@ public class MainActivity extends Activity {
         gameMenu = ov;
     }
 
+    /** Hide the menu but keep a "Back to <game>" button, since the game is still running behind us. */
+    private void openAnotherApp(String pkg, String name) {
+        showGameMenu(null);
+        TextView back = text("◀  Back to " + name + " menu", 16, BG, true);
+        back.setPadding(dp(22), dp(12), dp(22), dp(12));
+        back.setBackground(round(ACCENT, dp(24)));
+        back.setElevation(dp(8));
+        back.setOnClickListener(v -> showGameMenu(pkg));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        lp.bottomMargin = dp(24);
+        rootFrame.addView(back, lp);
+        backToGame = back;
+    }
+
     private TextView menuButton(String label, int bg, int fg, View.OnClickListener click) {
         TextView b = text(label, 18, fg, true);
         b.setGravity(Gravity.CENTER);
@@ -1131,6 +1150,7 @@ public class MainActivity extends Activity {
     /** Close (or restart) the app behind the launcher by pressing Force stop on its App info page. */
     private void stopApp(String pkg, String name, boolean restart) {
         if (gameStatus != null) gameStatus.setText(restart ? "Restarting…" : "Closing…");
+        stopAttempted = true;
         boolean started = LibraryInterceptor.forceStop(this, pkg, repo.label(pkg), ok -> ui.post(() -> {
             if (!ok) {
                 if (gameStatus != null) gameStatus.setText("");

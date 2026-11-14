@@ -26,7 +26,7 @@ import java.util.List;
 public class LibraryInterceptor extends AccessibilityService {
     private static final String TAG = "CleanMyVrLauncher";
     private final Handler main = new Handler(Looper.getMainLooper());
-    private long lastFire;
+    private long lastFire, lastGameMenu;
     private static java.lang.ref.WeakReference<LibraryInterceptor> instance = new java.lang.ref.WeakReference<>(null);
 
     // A Force stop we're pressing for the user (see forceStop).
@@ -64,20 +64,46 @@ public class LibraryInterceptor extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent e) {
         CharSequence p = e.getPackageName(), c = e.getClassName();
         if (p == null) return;
+        if (Log.isLoggable(TAG, Log.VERBOSE))
+            Log.v(TAG, "event " + AccessibilityEvent.eventTypeToString(e.getEventType()) + " " + p + " / " + c
+                    + (e.getEventType() == AccessibilityEvent.TYPE_WINDOWS_CHANGED ? " windows=" + describeWindows() : ""));
         if (stopPkg != null && p.toString().equals("com.android.settings")) { pressForceStop(); return; }
         if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || c == null) return;
         String pkg = p.toString(), cls = c.toString();
         if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "window " + pkg + " / " + cls);
 
-        if (!isMetaLibrary(pkg, cls)) return;
+        // The Meta button opens Navigator: as the Library at an empty Home, but only as Meta's system bar
+        // when a panel is open or inside a VR game. Either one means "Meta button pressed".
+        if (isMetaLibrary(pkg, cls) || isSystemBar(pkg, cls)) onLibrary(cls, null);
+    }
+
+    static boolean isSystemBar(String pkg, String cls) {
+        return (pkg.equals("com.oculus.panelapp.library") || pkg.equals("com.oculus.systemux")) && cls.endsWith("SystemBarActivity");
+    }
+
+    private String describeWindows() {
+        StringBuilder b = new StringBuilder();
+        try {
+            for (android.view.accessibility.AccessibilityWindowInfo w : getWindows()) {
+                AccessibilityNodeInfo r = w.getRoot();
+                b.append('[').append(r != null ? r.getPackageName() : w.getTitle()).append(w.isFocused() ? " focused" : "")
+                        .append(w.isActive() ? " active" : "").append(']');
+            }
+        } catch (Exception ignored) { }
+        return b.toString();
+    }
+
+    private void onLibrary(String cls, String knownGame) {
 
         if (new Prefs(this).takeoverPaused()) return;
         long now = SystemClock.elapsedRealtime();
-        if (now - lastFire < 600) return;
+        if (now - lastFire < 1200) return;      // one press can send Library + system bar events
+        // Navigator closing behind the in-game menu sends Library events too: don't let them toggle it shut.
+        if (now - lastGameMenu < 2500) return;
         lastFire = now;
 
         // Inside a VR game the Meta button opens Navigator: show our in-game menu instead (unless turned off).
-        String game = vrAppInFront();
+        String game = knownGame != null ? knownGame : vrAppInFront();
         if (game != null && !new Prefs(this).inGameMenu()) {
             Log.i(TAG, "Navigator opened over " + game + ": in-game menu is off, leaving it to Meta");
             return;
@@ -92,6 +118,7 @@ public class LibraryInterceptor extends AccessibilityService {
             return;
         }
 
+        if (game != null) lastGameMenu = now;
         Log.i(TAG, "Meta Library opened (" + cls + "), opening launcher instead" + (game != null ? " with in-game menu for " + game : ""));
         main.postDelayed(() -> startActivity(new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
@@ -112,6 +139,7 @@ public class LibraryInterceptor extends AccessibilityService {
         s.stopPkg = pkg;
         s.stopLabel = label;
         s.stopClicked = false;
+        s.stopMisses = 0;
         s.stopDeadline = SystemClock.elapsedRealtime() + 8000;
         s.stopDone = () -> onDone.accept(true);
         s.main.postDelayed(() -> {
@@ -123,26 +151,97 @@ public class LibraryInterceptor extends AccessibilityService {
         }, 8000);
         if (!AppRepo.openAppInfo(c, pkg)) { s.stopPkg = null; return false; }
         Log.i(TAG, "Force stop: opened App info for " + pkg);
+        s.main.postDelayed(s.stopPoll, 500);
         return true;
     }
 
+    private int stopMisses;
+
     private void pressForceStop() {
         if (SystemClock.elapsedRealtime() > stopDeadline) { stopPkg = null; return; }
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return;
+        List<AccessibilityNodeInfo> roots = settingsRoots();
+        if (roots.isEmpty()) return;
         if (!stopClicked) {
             // Only press anything on the App info page of the app the user chose (its name is on the page).
-            if (stopLabel != null && root.findAccessibilityNodeInfosByText(stopLabel).isEmpty()
-                    && root.findAccessibilityNodeInfosByText(stopPkg).isEmpty()) return;
-            AccessibilityNodeInfo b = find(root, "com.android.settings:id/button3", "Force stop");
-            if (b == null) return;
-            if (!b.isEnabled()) { finishStop("already stopped"); return; }   // greyed out = not running
-            if (clickable(b).performAction(AccessibilityNodeInfo.ACTION_CLICK)) stopClicked = true;
+            boolean ours = false;
+            AccessibilityNodeInfo button = null;
+            for (AccessibilityNodeInfo r : roots) {
+                if (containsText(r, stopLabel) || containsText(r, stopPkg)) ours = true;
+                if (button == null) button = findText(r, "Force stop");
+            }
+            if (!ours || button == null) {
+                if (++stopMisses == 10 && Log.isLoggable(TAG, Log.VERBOSE))
+                    for (AccessibilityNodeInfo r : roots) Log.v(TAG, "Force stop: page text = " + allText(r));
+                return;
+            }
+            if (!button.isEnabled() || !clickable(button).isEnabled()) { finishStop("already stopped"); return; }
+            if (clickable(button).performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                stopClicked = true;
+                Log.i(TAG, "Force stop: pressed Force stop");
+            }
         } else {
-            AccessibilityNodeInfo ok = find(root, "android:id/button1", "OK");
-            if (ok != null && clickable(ok).performAction(AccessibilityNodeInfo.ACTION_CLICK)) finishStop("stopped");
+            for (AccessibilityNodeInfo r : roots) {
+                AccessibilityNodeInfo ok = findText(r, "OK");
+                if (ok != null && clickable(ok).performAction(AccessibilityNodeInfo.ACTION_CLICK)) { finishStop("stopped"); return; }
+            }
         }
     }
+
+    /** Every Settings window (the confirm dialog is its own window). */
+    private List<AccessibilityNodeInfo> settingsRoots() {
+        List<AccessibilityNodeInfo> out = new java.util.ArrayList<>();
+        try {
+            for (android.view.accessibility.AccessibilityWindowInfo w : getWindows()) {
+                AccessibilityNodeInfo r = w.getRoot();
+                if (r != null && r.getPackageName() != null && r.getPackageName().toString().equals("com.android.settings")) out.add(r);
+            }
+        } catch (Exception ignored) { }
+        return out;
+    }
+
+    private static String nodeText(AccessibilityNodeInfo n) {
+        CharSequence t = n.getText() != null ? n.getText() : n.getContentDescription();
+        return t != null ? t.toString().trim() : "";
+    }
+
+    /** Walks the tree ourselves: findAccessibilityNodeInfosByText misses text in Compose screens. */
+    private static AccessibilityNodeInfo findText(AccessibilityNodeInfo n, String text) {
+        if (n == null) return null;
+        if (nodeText(n).equalsIgnoreCase(text)) return n;
+        for (int i = 0; i < n.getChildCount(); i++) {
+            AccessibilityNodeInfo hit = findText(n.getChild(i), text);
+            if (hit != null) return hit;
+        }
+        return null;
+    }
+
+    private static boolean containsText(AccessibilityNodeInfo n, String text) {
+        if (n == null || text == null || text.isEmpty()) return false;
+        if (nodeText(n).toLowerCase(java.util.Locale.ROOT).contains(text.toLowerCase(java.util.Locale.ROOT))) return true;
+        for (int i = 0; i < n.getChildCount(); i++) if (containsText(n.getChild(i), text)) return true;
+        return false;
+    }
+
+    private static String allText(AccessibilityNodeInfo n) {
+        StringBuilder b = new StringBuilder();
+        collect(n, b, 0);
+        return b.toString();
+    }
+
+    private static void collect(AccessibilityNodeInfo n, StringBuilder b, int depth) {
+        if (n == null || depth > 40) return;
+        String t = nodeText(n);
+        if (!t.isEmpty()) b.append('[').append(t).append(n.isClickable() ? "*" : "").append(']');
+        for (int i = 0; i < n.getChildCount(); i++) collect(n.getChild(i), b, depth + 1);
+    }
+
+    private final Runnable stopPoll = new Runnable() {
+        @Override public void run() {
+            if (stopPkg == null) return;
+            pressForceStop();
+            if (stopPkg != null) main.postDelayed(this, 300);
+        }
+    };
 
     private void finishStop(String how) {
         Log.i(TAG, "Force stop: " + stopPkg + " " + how);
@@ -153,14 +252,6 @@ public class LibraryInterceptor extends AccessibilityService {
             performGlobalAction(GLOBAL_ACTION_BACK);   // close App info
             if (done != null) main.postDelayed(done, 400);
         }, 300);
-    }
-
-    private static AccessibilityNodeInfo find(AccessibilityNodeInfo root, String id, String text) {
-        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId(id);
-        for (AccessibilityNodeInfo n : l) if (n.getText() == null || text.equalsIgnoreCase(n.getText().toString())) return n;
-        for (AccessibilityNodeInfo n : root.findAccessibilityNodeInfosByText(text))
-            if (n.getText() != null && text.equalsIgnoreCase(n.getText().toString().trim())) return n;
-        return null;
     }
 
     private static AccessibilityNodeInfo clickable(AccessibilityNodeInfo n) {

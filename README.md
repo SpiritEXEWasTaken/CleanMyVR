@@ -79,7 +79,9 @@ cd launcher
 **How the takeover works:** Horizon OS's Home (`vrshell`) also draws every panel,
 passthrough and the boundary, so it can't be replaced without root. Instead, a small
 accessibility service watches for Meta's Library panel opening, closes it, and opens this
-launcher. It reads the name of the panel that opened, nothing else (except for Close/Restart App, below). To use
+launcher. With a panel open (or in a game), Horizon shows only Meta's system bar instead of the Library; the
+launcher treats that as the Meta button too. It reads the name of the panel that opened, nothing else
+(except for Close/Restart App, below). To use
 Meta's Library on purpose, use **⋯ → Open Meta's Library once**.
 
 **In-game menu:** inside a VR game, the Meta button opens the launcher too, over a blurred background
