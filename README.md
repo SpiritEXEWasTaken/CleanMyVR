@@ -38,6 +38,10 @@ On Linux, if the headset shows as "no permissions", add a udev rule for Meta's U
 - **Environment**: diagnoses the "Home is just a white sky" bug (see below).
 - **Launcher**: installs the companion launcher (Library replacement plus an app store).
 - **Restore**: reinstalls removed apps, or copies a backup back (game saves only into installed games).
+- **Extras → Quest Home Switcher:** one button sets up [Quest Home Switcher](https://github.com/nikitat21/Quest-Home-Switcher)
+  for switching Home environments: downloads it (SHA-256 checked, never a build less than 14 days old),
+  installs it with its permissions granted so you skip the Wireless ADB pairing, and opens it to finish
+  setup. Needs Loft as your Home. It's a third-party app that gets shell-level access once set up.
 - **Extras → Google Play apps:** installs Aurora Store (from F-Droid), which downloads Play Store apps
   without a Google account. Apps that need Google's services (Google sign-in, push notifications, Play
   Integrity, many banking/streaming apps) won't run: Quest has no Google services, and microG (the open

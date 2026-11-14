@@ -55,7 +55,8 @@ class Api:
         return actions.environment_status(self._need())
 
     def extras_status(self):
-        return extras.status(self._need())
+        h = self._need()
+        return {**extras.status(h), "qhs": extras.qhs_status(h)}
 
     def default_backup_dir(self, user):
         return str(Path.home() / "Quest-Backups" / f"profile-{user}")
@@ -106,6 +107,8 @@ class Api:
             "adopt": lambda: actions.adopt(h, self._log),
             "install_play_apps": lambda: extras.install_play_apps(h, self._log),
             "remove_play_apps": lambda: extras.remove_play_apps(h, self._log),
+            "install_qhs": lambda: extras.install_qhs(h, self._log),
+            "remove_qhs": lambda: extras.remove_qhs(h, self._log),
         }
         if task not in jobs:
             return {"started": False, "error": f"unknown task {task}"}

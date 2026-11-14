@@ -215,6 +215,13 @@ def menu_extras(h):
         extras.install_play_apps(h, progress)
     elif st["aurora"] and yes("Remove Aurora Store?"):
         extras.remove_play_apps(h, progress)
+    q = extras.qhs_status(h)
+    print(bold("\nQuest Home Switcher") + dim(f"  ({'installed ' + q['version'] if q['installed'] else 'not installed'})"))
+    print("   " + q["note"])
+    if yes("Finish setup / update Quest Home Switcher?" if q["installed"] else "Set up Quest Home Switcher?"):
+        extras.install_qhs(h, progress)
+    elif q["installed"] and yes("Remove Quest Home Switcher?"):
+        extras.remove_qhs(h, progress)
 
 
 def fix_drift(h, rc):
@@ -260,7 +267,7 @@ def main() -> None:
                     ("Check the home environment (white sky bug)", menu_environment),
                     ("Install / update / remove the launcher", menu_launcher),
                     ("Restore removed apps or a backup", menu_restore),
-                    ("Extras: Google Play apps (Aurora Store)", menu_extras)]
+                    ("Extras: Aurora Store, Quest Home Switcher", menu_extras)]
         for i, (label, _) in enumerate(options, 1):
             print(f"   {i}) {label}")
         print("   q) Quit")

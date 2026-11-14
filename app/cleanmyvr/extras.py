@@ -67,3 +67,99 @@ def remove_play_apps(h: Headset, progress=lambda m: None) -> None:
     S.record(st, "remove_play_apps", user)
     S.save(h, st)
     progress("Aurora Store removed.")
+
+
+# ---------------------------------------------------------------------------------------- Quest Home Switcher
+# https://github.com/nikitat21/Quest-Home-Switcher : switches the Home environment. Installed with -g
+# (WRITE_SECURE_SETTINGS etc. pre-granted), it sets itself up on first launch with no Wireless ADB pairing.
+# It needs Loft (haven2025) as the active home, and once set up it has shell-level access through its own
+# Wireless ADB. It's closed source, so it's opt-in and the app says so.
+QHS = "app.questhomeswitcher"
+QHS_REPO = "nikitat21/Quest-Home-Switcher"
+QHS_ACTIVITY = f"{QHS}/io.github.nikitat21.questhomeswitcher.v2lab.PanelSwitcherV2Activity"
+QHS_MIN_AGE_DAYS = 14   # like everything CleanMyVR downloads: never a build that's only days old
+QHS_NOTE = ("Quest Home Switcher is a third-party app (closed source). Once set up it has shell-level access to the "
+            "headset through its own Wireless ADB, and it needs Loft as your Home environment.")
+
+
+def _vt(v: str) -> tuple:
+    import re
+    return tuple((list(map(int, re.findall(r"\d+", v or "")[:3])) + [0, 0, 0])[:3])
+
+
+def qhs_status(h: Headset) -> dict:
+    user = h.adb.current_user()
+    if QHS not in h.adb.packages(user):
+        return {"installed": False, "version": None, "note": QHS_NOTE}
+    v = h.adb.sh(f"dumpsys package {QHS} | grep -m1 versionName").split("=")[-1].strip()
+    return {"installed": True, "version": v, "note": QHS_NOTE}
+
+
+def _qhs_release() -> dict:
+    """Newest release that's at least QHS_MIN_AGE_DAYS old and has an APK plus SHA256SUMS.txt."""
+    import datetime
+    rels = json.loads(_get(f"https://api.github.com/repos/{QHS_REPO}/releases?per_page=20"))
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=QHS_MIN_AGE_DAYS)
+    for r in rels:
+        if r.get("draft") or r.get("prerelease"):
+            continue
+        published = datetime.datetime.fromisoformat(r["published_at"].replace("Z", "+00:00"))
+        assets = {a["name"]: a["browser_download_url"] for a in r.get("assets", [])}
+        apk = next((n for n in assets if n.endswith(".apk")), None)
+        if published <= cutoff and apk and "SHA256SUMS.txt" in assets:
+            return {"tag": r["tag_name"], "apk": apk, "apk_url": assets[apk], "sums_url": assets["SHA256SUMS.txt"]}
+    raise RuntimeError("No Quest Home Switcher release older than 14 days with checksums was found.")
+
+
+def install_qhs(h: Headset, progress=lambda m: None) -> dict:
+    """Download (SHA-256 checked), install with permissions pre-granted, and open it once to finish setup."""
+    import hashlib
+    from . import actions
+    user = h.adb.current_user()
+    env = actions.environment_status(h)
+    home = " ".join(str(env.get(k, "")) for k in ("selected", "resolved", "loaded"))
+    if env.get("available") and "haven2025" not in home:
+        raise RuntimeError("Quest Home Switcher needs Loft as your Home environment (Settings → Environment → "
+                           "Loft), or a factory reset if your Home is stuck on a retired one. Nothing was installed.")
+    st = qhs_status(h)
+    rel = _qhs_release()
+    if st["installed"] and _vt(st["version"]) >= _vt(rel["tag"]):
+        progress(f"Quest Home Switcher {st['version']} is already installed (newest allowed: {rel['tag']}); finishing setup.")
+        version = st["version"]
+        h.adb.shell(f"pm grant --user {user} {QHS} android.permission.WRITE_SECURE_SETTINGS")
+    else:
+        progress(f"Downloading Quest Home Switcher {rel['tag']} from GitHub…")
+        data = _get(rel["apk_url"], timeout=300)
+        sums = {}
+        for line in _get(rel["sums_url"]).decode().splitlines():
+            parts = line.split()
+            if len(parts) == 2:
+                sums[parts[1].lstrip("*")] = parts[0].lower()
+        if hashlib.sha256(data).hexdigest() != sums.get(rel["apk"]):
+            raise RuntimeError("The download doesn't match the project's published SHA-256. Nothing was installed.")
+        progress("Download verified (SHA-256).")
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = Path(tmp) / "qhs.apk"
+            apk.write_bytes(data)
+            r = h.adb.run("install", "-r", "-g", "--user", str(user), str(apk), timeout=300)
+            if "Success" not in r.out:
+                raise RuntimeError(f"Quest Home Switcher: install failed: {r.text}")
+        version = rel["tag"].lstrip("v")
+        progress(f"Installed Quest Home Switcher {version} (permissions granted, so no Wireless ADB pairing needed)")
+    h.adb.shell(f"am start --user {user} -n {QHS_ACTIVITY}")
+    progress("Opened it in the headset: it finishes setting itself up there. Pick a Home and press Apply.")
+    s = S.load(h)
+    s.setdefault("extras", {})["quest_home_switcher"] = {"at": S.now(), "user": user, "version": version}
+    S.record(s, "install_quest_home_switcher", user, version=version)
+    S.save(h, s)
+    return {"version": version}
+
+
+def remove_qhs(h: Headset, progress=lambda m: None) -> None:
+    user = h.adb.current_user()
+    r = h.adb.shell(f"pm uninstall --user {user} {QHS}")
+    s = S.load(h)
+    s.setdefault("extras", {}).pop("quest_home_switcher", None)
+    S.record(s, "remove_quest_home_switcher", user)
+    S.save(h, s)
+    progress("Quest Home Switcher removed." if "Success" in r.out else "Quest Home Switcher wasn't installed.")

@@ -147,6 +147,10 @@ async function extrasPage() {
   const s = await api.extras_status();
   $("#ex-box").innerHTML = `<b>Aurora Store: ${s.aurora ? "installed" : "not installed"}</b>
     <p class="muted small">${esc(s.note)}</p>`;
+  $("#qhs-box").innerHTML = `<b>${s.qhs.installed ? "Installed (" + esc(s.qhs.version) + ")" : "Not installed"}</b>
+    <p class="muted small">${esc(s.qhs.note)}</p>`;
+  $("#btn-qhs-install").textContent = s.qhs.installed ? "Finish setup / update" : "Set up Quest Home Switcher";
+  $("#btn-qhs-remove").disabled = !s.qhs.installed;
   $("#btn-ex-install").disabled = s.aurora;
   $("#btn-ex-remove").disabled = !s.aurora;
 }
@@ -196,6 +200,8 @@ function wire() {
   $("#btn-rs-apps").onclick = () => run("restore", {user: picked("rsuser")}, "Reinstall the apps listed?");
   $("#btn-rs-pick").onclick = async () => { const f = await api.choose_folder(); if (f) $("#rs-src").value = f; };
   $("#btn-ex-install").onclick = () => run("install_play_apps", {}, "Install Aurora Store? (removable)");
+  $("#btn-qhs-install").onclick = () => run("install_qhs", {}, "Set up Quest Home Switcher? It's a third-party app: once set up it has shell-level access to the headset through its own Wireless ADB. Removable any time.");
+  $("#btn-qhs-remove").onclick = () => run("remove_qhs", {}, "Remove Quest Home Switcher?");
   $("#btn-ex-remove").onclick = () => run("remove_play_apps", {}, "Remove Aurora Store?");
   $("#btn-rs-backup").onclick = () => run("restore_backup", {src: $("#rs-src").value, user: picked("rsuser")}, "Copy this backup onto the picked profile?");
 }

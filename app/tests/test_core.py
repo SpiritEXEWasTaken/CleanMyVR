@@ -204,6 +204,56 @@ class Actions(unittest.TestCase):
         self.assertIn("com.oculus.facebook", fake.pkgs[0])
 
 
+class QuestHomeSwitcher(unittest.TestCase):
+    def setUp(self):
+        from cleanmyvr import extras
+        self.extras = extras
+        self.apk = b"qhs-apk"
+        old = "2026-01-01T00:00:00Z"
+        self.files = {
+            "rels": json.dumps([
+                {"tag_name": "v9.9.9", "published_at": "2999-01-01T00:00:00Z", "draft": False, "prerelease": False,
+                 "assets": [{"name": "Q-9.apk", "browser_download_url": "new.apk"}, {"name": "SHA256SUMS.txt", "browser_download_url": "new.sums"}]},
+                {"tag_name": "v2.3.0", "published_at": old, "draft": False, "prerelease": False,
+                 "assets": [{"name": "Q-2.3.0.apk", "browser_download_url": "a.apk"}, {"name": "SHA256SUMS.txt", "browser_download_url": "a.sums"}]},
+            ]).encode(),
+            "a.apk": self.apk,
+            "a.sums": f"{hashlib.sha256(self.apk).hexdigest()}  Q-2.3.0.apk\n".encode(),
+        }
+
+    def get(self, url, timeout=120):
+        return self.files["rels"] if "api.github.com" in url else self.files[url]
+
+    def run_install(self, home):
+        fake = FakeAdb([], props=QUEST3_PROPS)
+        fake.run = mock.Mock(return_value=Result(0, "Success"))
+        h = headset(fake)
+        env = {"available": True, "selected": home, "resolved": home, "loaded": home}
+        with mock.patch.object(self.extras, "_get", side_effect=self.get), \
+                mock.patch("cleanmyvr.actions.environment_status", return_value=env):
+            return fake, h, self.extras.install_qhs(h)
+
+    def test_installs_newest_release_older_than_14_days_verified(self):
+        fake, h, r = self.run_install("apk://com.meta.shell.env.footprint.haven2025/x")
+        self.assertEqual(r["version"], "2.3.0", "the brand-new 9.9.9 is skipped")
+        args = fake.run.call_args[0]
+        self.assertIn("-g", args)
+        self.assertTrue(any(QHS_START in c for c in fake.log))
+        self.assertEqual(S.load(h)["history"][-1]["action"], "install_quest_home_switcher")
+
+    def test_refuses_without_loft(self):
+        with self.assertRaises(RuntimeError):
+            self.run_install("apk://com.oculus.environment.prod.cyberhome/x")
+
+    def test_bad_checksum_installs_nothing(self):
+        self.files["a.sums"] = b"0" * 64 + b"  Q-2.3.0.apk\n"
+        with self.assertRaises(RuntimeError):
+            self.run_install("haven2025")
+
+
+QHS_START = "am start --user 0 -n app.questhomeswitcher/"
+
+
 class Takeover(unittest.TestCase):
     DUMP = """User state[
      attributes:{id=0, touchExplorationEnabled=false}
