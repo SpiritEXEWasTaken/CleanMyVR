@@ -1,0 +1,17 @@
+# Per-device removal logs (contain the headset serial number)
+logs/
+launcher/build/
+launcher/launcher.apk
+backups/
+
+# Personal 3D models (may contain third-party art) - never commit
+*.glb
+*.gltf
+models/
+.venv/
+__pycache__/
+*.pyc
+app/build/
+app/dist/
+app/assets/launcher.apk
+*.idsig

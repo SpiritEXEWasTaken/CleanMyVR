@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "url": "https://github.com/SpiritEXEWasTaken/CleanMyVR",
+      "name": "CleanMyVR Launcher",
+      "description": "This launcher. Updates to new CleanMyVR releases here",
+      "hint": "launcher",
+      "pkg": "com.cleanmyvr.launcher"
+    },
+    {
+      "url": "https://github.com/Igalia/wolvic",
+      "name": "Wolvic",
+      "description": "Open-source web browser made for VR headsets",
+      "hint": "oculusvr"
+    },
+    {
+      "url": "https://github.com/alvr-org/ALVR",
+      "name": "ALVR",
+      "description": "Stream SteamVR games from your PC over Wi-Fi"
+    },
+    {
+      "url": "https://github.com/QuestCraftPlusPlus/QuestCraft",
+      "name": "QuestCraft",
+      "description": "Minecraft Java Edition in VR (needs a Minecraft account)"
+    },
+    {
+      "url": "https://github.com/moonlight-stream/moonlight-android",
+      "name": "Moonlight",
+      "description": "Stream PC games (Sunshine / GeForce Experience) to the headset",
+      "hint": "nonroot",
+      "pkg": "com.limelight"
+    },
+    {
+      "url": "https://github.com/localsend/localsend",
+      "name": "LocalSend",
+      "description": "Send files between your devices over Wi-Fi",
+      "hint": "arm64v8",
+      "pkg": "org.localsend.localsend_app"
+    },
+    {
+      "url": "https://github.com/TeamNewPipe/NewPipe",
+      "name": "NewPipe",
+      "description": "Lightweight YouTube client without ads",
+      "pkg": "org.schabi.newpipe"
+    },
+    {
+      "url": "https://f-droid.org/packages/com.aurora.store/",
+      "name": "Aurora Store",
+      "description": "Download Google Play apps without a Google account (pair with microG for apps that need Google services)",
+      "pkg": "com.aurora.store"
+    },
+    {
+      "url": "https://github.com/Droid-ify/client",
+      "name": "Droid-ify",
+      "description": "F-Droid client with thousands of open-source apps",
+      "pkg": "com.looker.droidify"
+    },
+    {
+      "url": "https://github.com/nikitat21/Quest-Home-Switcher",
+      "name": "Quest Home Switcher",
+      "description": "Switch your Home environment (needs Loft active; one-time Wireless ADB pairing in the headset)",
+      "hint": ".apk",
+      "pkg": "app.questhomeswitcher"
+    },
+    {
+      "url": "https://github.com/CidVonHighwind/VirtualBoyGo",
+      "name": "VirtualBoyGo",
+      "description": "Virtual Boy emulator in VR (bring your own games; none included)",
+      "hint": ".apk",
+      "pkg": "com.nintendont.virtualboygo"
+    },
+    {
+      "url": "https://sdq.st/go",
+      "name": "SideQuest",
+      "description": "Browse and install SideQuest apps right in VR",
+      "pkg": "quest.side.vr",
+      "direct": "https://api.sidequestvr.com/v2/apps/get-sidequest-apk"
+    }
+  ]
+}

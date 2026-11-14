@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CleanMyVR</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <nav>
+    <div class="brand">CleanMyVR <small id="ver"></small></div>
+    <a href="#" data-page="overview" class="active">Overview</a>
+    <a href="#" data-page="debloat">Debloat</a>
+    <a href="#" data-page="backup">Backup</a>
+    <a href="#" data-page="storage">Storage</a>
+    <a href="#" data-page="environment">Environment</a>
+    <a href="#" data-page="launcher">Launcher</a>
+    <a href="#" data-page="restore">Restore</a>
+    <a href="#" data-page="extras">Extras</a>
+    <div class="device" id="devname">Not connected</div>
+  </nav>
+  <main>
+    <div id="update-bar" class="card banner good hidden"></div>
+    <!-- Connect -->
+    <section id="page-connect">
+      <h1>Connect your headset</h1>
+      <p class="sub">CleanMyVR talks to your Quest over USB. Nothing changes until you choose an action.</p>
+      <ol class="steps">
+        <li><b>Turn on Developer Mode</b><br><span class="muted small">Meta Horizon phone app → Devices → your headset → Headset settings → Developer mode.</span></li>
+        <li><b>Plug the headset into this computer</b><br><span class="muted small">Use a USB cable that carries data (some charging cables don't).</span></li>
+        <li><b>Put the headset on and choose Allow</b><br><span class="muted small">Tick “Always allow from this computer” in the “Allow USB debugging?” prompt.</span></li>
+      </ol>
+      <div class="card banner" id="connect-msg"><span class="muted">Press Connect when you're ready.</span></div>
+      <div class="row">
+        <button class="primary" id="btn-connect">Connect</button>
+        <button id="btn-download" class="hidden">Download Google's ADB tools</button>
+        <select id="device-pick" class="hidden"></select>
+      </div>
+    </section>
+
+    <!-- Overview -->
+    <section id="page-overview" class="hidden">
+      <h1>Overview</h1>
+      <p class="sub" id="ov-device"></p>
+      <div id="ov-notes"></div>
+      <div class="row"><h2 class="grow">Recheck</h2><button id="btn-recheck">Recheck</button>
+        <button class="primary hidden" id="btn-fix">Fix what changed</button></div>
+      <p class="muted small">Compares this headset with what CleanMyVR recorded on it (in /sdcard/CleanMyVR/state.json).</p>
+      <div id="ov-items"></div>
+      <h2>Recent activity</h2>
+      <div id="ov-history" class="card small muted">—</div>
+    </section>
+
+    <!-- Debloat -->
+    <section id="page-debloat" class="hidden">
+      <h1>Debloat</h1>
+      <p class="sub">Removes Meta extras for one profile. Nothing that games, the Store or your Meta account need is touched, and everything can be restored.</p>
+      <div id="db-untested" class="card banner bad hidden"></div>
+      <label class="muted small">Profile</label>
+      <div class="choice" id="db-users"></div>
+      <label class="muted small">Level</label>
+      <div class="choice">
+        <label><input type="radio" name="level" value="light"><b>Light</b><br><span class="muted small">Meta's extra apps only (Facebook, Instagram, tips, demos)</span></label>
+        <label><input type="radio" name="level" value="balanced" checked><b>Balanced</b> · recommended<br><span class="muted small">+ ads/promos, telemetry uploaders, business management</span></label>
+        <label><input type="radio" name="level" value="updates"><b>Balanced + block updates</b><br><span class="muted small">Best-effort. You lose fixes; online games may later need a newer OS.</span></label>
+      </div>
+      <div class="card"><b id="db-count">Preview</b><div class="plan" id="db-plan"></div></div>
+      <button class="primary" id="btn-debloat">Remove these</button>
+    </section>
+
+    <!-- Backup -->
+    <section id="page-backup" class="hidden">
+      <h1>Backup</h1>
+      <p class="sub">Copies photos and videos (any profile) plus game saves on shared storage to this computer. Every file is SHA-256 checked against the headset.</p>
+      <label class="muted small">Profile</label>
+      <div class="choice" id="bk-users"></div>
+      <div class="row card">
+        <input class="grow" id="bk-dest"><button id="btn-bk-pick">Choose folder…</button>
+      </div>
+      <div class="choice">
+        <label><input type="checkbox" id="bk-media" checked>Photos &amp; videos</label>
+        <label><input type="checkbox" id="bk-saves" checked>Game saves <span class="muted small">(current profile only)</span></label>
+      </div>
+      <p class="muted small">Saves inside apps' private storage can't be read by any tool; Meta Store games usually back those up to the cloud (Settings → System → Backup).</p>
+      <button class="primary" id="btn-backup">Back up</button>
+    </section>
+
+    <!-- Storage -->
+    <section id="page-storage" class="hidden">
+      <h1>Storage</h1>
+      <p class="sub" id="st-free"></p>
+      <h2>Biggest apps</h2><div id="st-apps" class="card small"></div>
+      <h2>Screenshots, recordings, photos and videos</h2><div id="st-caps" class="card small"></div>
+      <div class="row">
+        <button id="btn-caches">Clear app caches</button>
+        <button class="danger" id="btn-delcaps">Delete all captures…</button>
+      </div>
+    </section>
+
+    <!-- Environment -->
+    <section id="page-environment" class="hidden">
+      <h1>Home environment</h1>
+      <p class="sub">Checks the “white sky / empty void” bug: Home set to an environment that isn't installed.</p>
+      <div id="env-box" class="card"></div>
+      <button id="btn-env">Check again</button>
+    </section>
+
+    <!-- Launcher -->
+    <section id="page-launcher" class="hidden">
+      <h1>Launcher</h1>
+      <p class="sub">A replacement for Meta's Library with a game grid, favorites, categories, covers and an app store for open-source Quest apps.</p>
+      <div id="ln-box" class="card"></div>
+      <div class="row"><button class="primary" id="btn-ln-install">Install / update</button>
+        <button id="btn-ln-remove">Remove</button></div>
+    </section>
+
+    <!-- Restore -->
+    <section id="page-restore" class="hidden">
+      <h1>Restore</h1>
+      <label class="muted small">Profile</label>
+      <div class="choice" id="rs-users"></div>
+      <h2>Apps CleanMyVR removed</h2>
+      <div id="rs-list" class="card small muted"></div>
+      <button id="btn-rs-apps">Restore these apps</button>
+      <h2>Copy a backup back to the headset</h2>
+      <div class="row card"><input class="grow" id="rs-src" placeholder="Backup folder (contains SHA256SUMS.txt)">
+        <button id="btn-rs-pick">Choose…</button></div>
+      <p class="muted small">Photos and videos go to the profile picked above (any profile), each one SHA-256 checked; files already there are skipped. Game saves only go to the active profile and to games that are installed; install the game but don't open it before restoring its save.</p>
+      <button id="btn-rs-backup">Restore backup</button>
+    </section>
+    <!-- Extras -->
+    <section id="page-extras" class="hidden">
+      <h1>Extras</h1>
+      <h2>Google Play apps: microG + Aurora Store <span class="pill todo">experimental</span></h2>
+      <p class="sub">Aurora Store downloads Play Store apps without a Google account; microG stands in for Google's
+        services that many of those apps expect. Downloads are checked against microG's published SHA-256 hashes.</p>
+      <div id="ex-box" class="card"></div>
+      <div class="row"><button class="primary" id="btn-ex-install">Install microG + Aurora Store</button>
+        <button id="btn-ex-remove">Remove them</button></div>
+    </section>
+  </main>
+</div>
+<div id="log"></div>
+<script src="app.js"></script>
+</body>
+</html>

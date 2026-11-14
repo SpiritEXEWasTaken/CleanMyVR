@@ -1,0 +1,116 @@
+{
+  "id": "quest3s",
+  "name": "Meta Quest 3S",
+  "match": {
+    "ro.product.device": [
+      "panther"
+    ],
+    "ro.product.model": [
+      "Quest 3S"
+    ]
+  },
+  "tested": false,
+  "tested_on": [],
+  "debloat": {
+    "light": [],
+    "balanced": []
+  },
+  "candidates_from_quest3": {
+    "light": [
+      {
+        "pkg": "com.oculus.facebook",
+        "why": "Facebook VR app"
+      },
+      {
+        "pkg": "com.oculus.igvr",
+        "why": "Instagram VR app"
+      },
+      {
+        "pkg": "com.oculus.fitnesstracker",
+        "why": "Meta Move fitness overlay"
+      },
+      {
+        "pkg": "com.oculus.helpcenter",
+        "why": "Help Center / Tips"
+      },
+      {
+        "pkg": "com.oculus.vrprivacycheckup",
+        "why": "Privacy Checkup app (settings stay in Settings)"
+      },
+      {
+        "pkg": "com.oculus.mobile_mrc_setup",
+        "why": "Mixed Reality Capture setup tool"
+      },
+      {
+        "pkg": "com.meta.handseducationmodule",
+        "why": "Hand-tracking tutorial (~330 MB)"
+      },
+      {
+        "pkg": "com.meta.curio.toybox",
+        "why": "Meta demo app Toybox (~470 MB)"
+      },
+      {
+        "pkg": "com.meta.curio.ruler",
+        "why": "Meta demo app Ruler"
+      },
+      {
+        "pkg": "com.meta.HyperscapeHmdCapture",
+        "why": "Hyperscape room-capture demo"
+      }
+    ],
+    "balanced": [
+      {
+        "pkg": "com.oculus.quickpromotionservice",
+        "why": "In-headset promos / ads"
+      },
+      {
+        "pkg": "com.oculus.ovrmonitormetricsservice",
+        "why": "Performance metrics telemetry"
+      },
+      {
+        "pkg": "com.oculus.bugreportuploader",
+        "why": "Uploads bug reports and logs to Meta"
+      },
+      {
+        "pkg": "com.meta.federatedcomputing.oculus",
+        "why": "Federated-learning data collection"
+      },
+      {
+        "pkg": "com.oculus.q4b.mdm",
+        "why": "Quest for Business device management"
+      }
+    ]
+  },
+  "update_blocking": {
+    "remove": [],
+    "restrict": null
+  },
+  "never_remove": [
+    "com.oculus.horizon",
+    "com.oculus.store",
+    "com.oculus.socialplatform",
+    "com.oculus.accountscenter",
+    "com.meta.AccountsCenter.pwa",
+    "oculus.platform",
+    "com.oculus.vrshell",
+    "com.oculus.systemux",
+    "com.oculus.guardian",
+    "com.oculus.integrity",
+    "com.oculus.deviceauthserver",
+    "com.oculus.identitymanagement.service",
+    "com.oculus.ocms",
+    "com.oculus.os.vrlockscreen",
+    "com.meta.shell.env.footprint.haven2025",
+    "com.meta.shell.env.vista.calming"
+  ],
+  "never_remove_prefixes": [
+    "horizon.platform.",
+    "horizonos."
+  ],
+  "protected": {},
+  "comes_back": [],
+  "environment": {},
+  "notes": [
+    "UNTESTED on Meta Quest 3S. Debloat is disabled until someone with this headset verifies each package (see docs/ADDING_DEVICES.md). 'candidates_from_quest3' lists what worked on a Quest 3 as a starting point."
+  ]
+}

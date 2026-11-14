@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Launcher</string>
+    <string name="interceptor_label">Launcher: replace Library</string>
+    <string name="interceptor_desc">Opens your custom launcher whenever Meta\'s Library would open. Reads only which panel opened; no content.</string>
+</resources>

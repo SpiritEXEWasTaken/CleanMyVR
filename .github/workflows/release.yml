@@ -1,0 +1,116 @@
+name: Release
+
+# Makes a GitHub release automatically whenever __version__ in app/cleanmyvr/__init__.py changes on main
+# (and that version has no tag yet). Builds launcher.apk (signed with the release key) and the Windows app,
+# writes release notes from the commits (features, fixes, new contributors) and publishes everything.
+# Run it by hand from the Actions tab with "dry run" to build and preview the notes without publishing.
+on:
+  push:
+    branches: [main]
+    paths: [app/cleanmyvr/__init__.py]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and preview the release notes, but don't publish
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      build: ${{ steps.v.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0}
+      - id: v
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' app/cleanmyvr/__init__.py)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null && [ "$DRY_RUN" != "true" ]; then
+            echo "::notice::v$version is already released; bump __version__ to make a new release."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  launcher:
+    needs: version
+    if: needs.version.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with: {distribution: temurin, java-version: "17"}
+      - name: Use the release signing key (keeps updates working across releases)
+        env:
+          KEYSTORE_B64: ${{ secrets.LAUNCHER_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::The LAUNCHER_KEYSTORE_B64 secret is missing; releases must be signed with the release key."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+      - name: Build launcher.apk
+        env:
+          KEYSTORE_PASS: ${{ secrets.LAUNCHER_KEYSTORE_PASS }}
+        run: |
+          export ANDROID_HOME="$ANDROID_SDK_ROOT"
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" >/dev/null
+          launcher/build.sh
+      - uses: actions/upload-artifact@v7
+        with: {name: launcher, path: launcher/launcher.apk}
+
+  windows:
+    needs: launcher
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: {name: launcher, path: app/assets}
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.12"}
+      - name: Build CleanMyVR.exe
+        working-directory: app
+        run: |
+          python -m pip install -r requirements.txt pyinstaller==6.22.3
+          pyinstaller --noconfirm packaging/cleanmyvr.spec
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist-win | Out-Null
+          Copy-Item app/dist/CleanMyVR.exe, CleanMyVR-cmd.bat, README.md, LICENSE dist-win/
+          Compress-Archive -Path dist-win/* -DestinationPath CleanMyVR-windows.zip
+      - uses: actions/upload-artifact@v7
+        with: {name: windows, path: CleanMyVR-windows.zip}
+
+  release:
+    needs: [version, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0}
+      - uses: actions/download-artifact@v8
+        with: {path: dist, merge-multiple: true}
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum CleanMyVR-windows.zip launcher.apk > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Release notes
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          python3 .github/scripts/release_notes.py "${{ github.repository }}" "v${{ needs.version.outputs.version }}" "${{ github.sha }}" > notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish
+        if: github.event_name == 'push' || !inputs.dry_run
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          gh release create "v${{ needs.version.outputs.version }}" --target "${{ github.sha }}" \
+            --title "CleanMyVR ${{ needs.version.outputs.version }}" --notes-file notes.md \
+            dist/CleanMyVR-windows.zip dist/launcher.apk dist/SHA256SUMS.txt

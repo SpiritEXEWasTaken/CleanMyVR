@@ -1,0 +1,6 @@
+# OPTIONAL: stop Horizon OS system updates. Not recommended for most people:
+# you lose bug fixes, and some online games eventually require a newer OS.
+@include balanced.txt
+
+com.oculus.updater                 # System update service
+com.oculus.nux.ota                 # Out-of-box update flow

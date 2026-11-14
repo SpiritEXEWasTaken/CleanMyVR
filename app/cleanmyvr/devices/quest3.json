@@ -1,0 +1,152 @@
+{
+  "id": "quest3",
+  "name": "Meta Quest 3",
+  "match": {
+    "ro.product.device": [
+      "eureka"
+    ],
+    "ro.product.model": [
+      "Quest 3"
+    ]
+  },
+  "tested": true,
+  "tested_on": [
+    {
+      "build": "UP1A.231005.007.A1",
+      "incremental": "53145330022100520",
+      "horizon_os": "v210",
+      "date": "2026-11-14"
+    }
+  ],
+  "debloat": {
+    "light": [
+      {
+        "pkg": "com.oculus.facebook",
+        "why": "Facebook VR app"
+      },
+      {
+        "pkg": "com.oculus.igvr",
+        "why": "Instagram VR app"
+      },
+      {
+        "pkg": "com.oculus.fitnesstracker",
+        "why": "Meta Move fitness overlay"
+      },
+      {
+        "pkg": "com.oculus.helpcenter",
+        "why": "Help Center / Tips"
+      },
+      {
+        "pkg": "com.oculus.vrprivacycheckup",
+        "why": "Privacy Checkup app (settings stay in Settings)"
+      },
+      {
+        "pkg": "com.oculus.mobile_mrc_setup",
+        "why": "Mixed Reality Capture setup tool"
+      },
+      {
+        "pkg": "com.meta.handseducationmodule",
+        "why": "Hand-tracking tutorial (~330 MB)"
+      },
+      {
+        "pkg": "com.meta.curio.ruler",
+        "why": "Meta demo app Ruler"
+      },
+      {
+        "pkg": "com.meta.HyperscapeHmdCapture",
+        "why": "Hyperscape room-capture demo"
+      }
+    ],
+    "balanced": [
+      {
+        "pkg": "com.oculus.quickpromotionservice",
+        "why": "In-headset promos / ads"
+      },
+      {
+        "pkg": "com.oculus.ovrmonitormetricsservice",
+        "why": "Performance metrics telemetry"
+      },
+      {
+        "pkg": "com.oculus.bugreportuploader",
+        "why": "Uploads bug reports and logs to Meta"
+      },
+      {
+        "pkg": "com.meta.federatedcomputing.oculus",
+        "why": "Federated-learning data collection"
+      },
+      {
+        "pkg": "com.oculus.q4b.mdm",
+        "why": "Quest for Business device management"
+      },
+      {
+        "pkg": "com.whatsapp",
+        "why": "WhatsApp (installed by Meta during setup)"
+      },
+      {
+        "pkg": "com.facebook.arvr.quillplayer",
+        "why": "Theater Elsewhere: Meta's Quill VR animated films player"
+      }
+    ]
+  },
+  "update_blocking": {
+    "remove": [
+      {
+        "pkg": "com.oculus.nux.ota",
+        "why": "Out-of-box system update flow"
+      }
+    ],
+    "restrict": {
+      "pkg": "com.oculus.updater",
+      "appops": [
+        "RUN_ANY_IN_BACKGROUND",
+        "RUN_IN_BACKGROUND"
+      ],
+      "remove_from_deviceidle_whitelist": true,
+      "note": "Protected by Meta: cannot be uninstalled or disabled without root. Restricting background work is best-effort."
+    }
+  },
+  "never_remove": [
+    "com.oculus.horizon",
+    "com.oculus.store",
+    "com.oculus.socialplatform",
+    "com.oculus.accountscenter",
+    "com.meta.AccountsCenter.pwa",
+    "oculus.platform",
+    "com.oculus.vrshell",
+    "com.oculus.systemux",
+    "com.oculus.guardian",
+    "com.oculus.integrity",
+    "com.oculus.deviceauthserver",
+    "com.oculus.identitymanagement.service",
+    "com.oculus.ocms",
+    "com.oculus.os.vrlockscreen",
+    "com.meta.shell.env.footprint.haven2025",
+    "com.meta.shell.env.vista.calming"
+  ],
+  "never_remove_prefixes": [
+    "horizon.platform.",
+    "horizonos."
+  ],
+  "protected": {
+    "com.oculus.updater": "DELETE_FAILED_INTERNAL_ERROR; disable-user refused (protected package)",
+    "com.oculus.q4bservice": "DELETE_FAILED_INTERNAL_ERROR"
+  },
+  "comes_back": [
+    "com.oculus.facebook",
+    "com.meta.handseducationmodule",
+    "com.oculus.quickpromotionservice",
+    "com.meta.federatedcomputing.oculus"
+  ],
+  "environment": {
+    "dump_command": "dumpsys -t 2 DumpsysProxy VRShell",
+    "default_footprint": "apk://com.meta.shell.env.footprint.haven2025/assets/scene.zip",
+    "retired_environments": [
+      "com.oculus.environment.prod.cyberhome"
+    ]
+  },
+  "notes": [
+    "Wireless ADB apps such as Quest Home Switcher need Loft (Haven 2025 + Calming) as the active home.",
+    "Quest briefly locks (proximity sensor) and may show an invisible profile picker when several profiles exist.",
+    "Toybox (com.meta.curio.toybox) is a free Meta game, not bloat: never removed by debloat."
+  ]
+}

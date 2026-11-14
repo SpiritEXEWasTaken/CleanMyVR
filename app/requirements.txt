@@ -1,0 +1,2 @@
+# GUI window (the command line needs nothing beyond Python's standard library)
+pywebview==6.2.1

@@ -1,0 +1,13 @@
+# LIGHT: Meta bloat apps only. No system services are touched.
+# Everything is removed for the current user only (pm uninstall -k --user N).
+# Undo with ./restore.sh (or reinstall from the Meta Store).
+
+com.oculus.facebook             # Facebook VR app
+com.oculus.igvr                 # Instagram VR app
+com.oculus.fitnesstracker       # Meta Move fitness tracker overlay
+com.oculus.helpcenter           # Help Center / Tips app
+com.oculus.vrprivacycheckup     # Privacy Checkup app (settings stay in Settings)
+com.oculus.mobile_mrc_setup     # Mixed Reality Capture setup tool
+com.meta.handseducationmodule   # Hand-tracking tutorial (~330 MB)
+com.meta.curio.ruler            # Meta demo app "Ruler"
+com.meta.HyperscapeHmdCapture   # Hyperscape room-capture demo

@@ -1,0 +1,20 @@
+# BALANCED: everything in light.txt, plus ads/promos, telemetry and business-only services.
+# These were tested on a Quest 3 (Horizon OS v210, Nov 2026): games, Store, Meta login,
+# multiplayer and entitlement checks still work after a reboot.
+#
+# NEVER remove (games / account / store depend on them):
+#   com.oculus.horizon  com.oculus.store  com.oculus.socialplatform  com.oculus.accountscenter
+#   com.meta.AccountsCenter.pwa  horizon.platform.*  oculus.platform  horizonos.*
+#   com.oculus.vrshell  com.oculus.systemux  com.oculus.guardian*  com.oculus.integrity
+#   com.oculus.deviceauthserver  com.oculus.identitymanagement.service  com.oculus.updater (see README)
+
+@include light.txt
+
+com.oculus.quickpromotionservice   # In-headset promos / "try this" ads
+com.oculus.ovrmonitormetricsservice # Performance metrics telemetry
+com.oculus.bugreportuploader       # Uploads bug reports / logs to Meta
+com.meta.federatedcomputing.oculus # Federated-learning data collection
+com.oculus.q4b.mdm                 # Quest for Business device management
+# (com.oculus.q4bservice is protected by the OS: DELETE_FAILED_INTERNAL_ERROR)
+com.whatsapp                       # WhatsApp (installed by Meta during setup)
+com.facebook.arvr.quillplayer      # Theater Elsewhere (Quill VR films player)
