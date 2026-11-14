@@ -197,6 +197,14 @@ final class Prefs {
     void pauseTakeover(long ms) { sp.edit().putLong("pause_until", System.currentTimeMillis() + ms).apply(); }
     boolean takeoverPaused() { return System.currentTimeMillis() < sp.getLong("pause_until", 0); }
 
+    /** "Open Meta's Library once" / "Meta menu": let the next Meta Library/Navigator opening through, just that one. */
+    void skipNextTakeover(long withinMs) { sp.edit().putLong("skip_once_until", System.currentTimeMillis() + withinMs).apply(); }
+    boolean consumeSkip() {
+        if (System.currentTimeMillis() >= sp.getLong("skip_once_until", 0)) return false;
+        sp.edit().remove("skip_once_until").apply();
+        return true;
+    }
+
     /** Meta button inside a VR game opens the launcher's in-game menu (instead of Meta's Navigator). */
     boolean inGameMenu() { return sp.getBoolean("in_game_menu", true); }
     void setInGameMenu(boolean on) { sp.edit().putBoolean("in_game_menu", on).apply(); }

@@ -204,6 +204,17 @@ class Actions(unittest.TestCase):
         self.assertIn("com.oculus.facebook", fake.pkgs[0])
 
 
+class UpdateBlocking(unittest.TestCase):
+    def test_blocking_covers_every_profile(self):
+        fake = FakeAdb(["com.oculus.nux.ota", "com.oculus.updater"], users=((0, "Owner"), (10, "Sister")), props=QUEST3_PROPS)
+        h = headset(fake)
+        self.assertTrue(any("profile 10" in i for i in actions.updates_status(h, S.load(h))["issues"]))
+        actions.block_updates(h)
+        self.assertNotIn("com.oculus.nux.ota", fake.pkgs[0])
+        self.assertNotIn("com.oculus.nux.ota", fake.pkgs[10])
+        self.assertEqual(actions.updates_status(h, S.load(h))["issues"], [])
+
+
 class RestoreBackup(unittest.TestCase):
     def test_media_goes_to_another_profile_verified_and_reruns_skip(self):
         fake = FakeAdb([], users=((0, "Owner"), (10, "Sister")), props=QUEST3_PROPS)

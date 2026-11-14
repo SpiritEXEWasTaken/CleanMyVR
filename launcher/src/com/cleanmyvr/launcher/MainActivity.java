@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     static final String EXTRA_GAME = "game";
     static final String TAB_FAV = "fav", TAB_ALL = "all", TAB_VR = "vr", TAB_2D = "2d", TAB_SIDE = "side";
     private static final String CAT_PREFIX = "cat:";
-    private static final int REQ_COVER = 1, REQ_WALLPAPER = 2;
+    private static final int REQ_COVER = 1, REQ_WALLPAPER = 2, REQ_APK = 3;
 
     // Dark minimal palette
     static final int BG = 0xFF0E0F13, SURFACE = 0xD91A1D24, SURFACE_HI = 0xE6262A33,
@@ -112,6 +112,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         resumed = false;
         pausedAt = android.os.SystemClock.elapsedRealtime();
+        bg.execute(() -> SettingsBackup.save(this));
         super.onPause();
     }
 
@@ -139,6 +140,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         current = new java.lang.ref.WeakReference<>(this);
+        SettingsBackup.restoreIfFresh(this);
         prefs = new Prefs(this);
         repo = new AppRepo(this);
         tab = prefs.tab();
@@ -900,6 +902,7 @@ public class MainActivity extends Activity {
                 });
         covers.add("Use built-in app banners").setCheckable(true).setChecked(prefs.useAppBanners())
                 .setOnMenuItemClickListener(i -> { prefs.setUseAppBanners(!prefs.useAppBanners()); render(); return true; });
+        menu.add("Install an APK file…").setOnMenuItemClickListener(i -> { pickApk(); return true; });
         menu.add("Android settings").setOnMenuItemClickListener(i -> { openAndroidSettings(); return true; });
         menu.add("In-game menu (Meta button in VR games)").setCheckable(true).setChecked(prefs.inGameMenu())
                 .setOnMenuItemClickListener(i -> {
@@ -930,6 +933,24 @@ public class MainActivity extends Activity {
         else toast("Android settings aren't available");
     }
 
+    /** Pick any .apk (Downloads, a USB drive, ...) and install it. */
+    private void pickApk() {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/vnd.android.package-archive", "application/octet-stream"});
+        try { startActivityForResult(pick, REQ_APK); } catch (Exception e) { toast("No file picker available"); }
+    }
+
+    private void installPickedApk(android.net.Uri uri) {
+        toast("Installing…");
+        net.execute(() -> {
+            try {
+                new Store(this).installLocalApk(uri);           // Android shows its confirm dialog next
+            } catch (Exception e) {
+                ui.post(() -> toast(e.getMessage() != null ? e.getMessage() : "Couldn't install that file"));
+            }
+        });
+    }
+
     /** Android's App info page, not Meta's. */
     private void openAppInfo(String pkg) {
         if (!AppRepo.openAppInfo(this, pkg)) toast("App info isn't available");
@@ -941,19 +962,23 @@ public class MainActivity extends Activity {
     }
 
     private void openMetaLibrary() {
-        prefs.pauseTakeover(30_000);
+        prefs.skipNextTakeover(30_000);
         try {
             startActivity(new Intent(Intent.ACTION_MAIN)
                     .setComponent(new ComponentName("com.oculus.panelapp.library", "com.oculus.navigator.library.app.NavigatorLibraryActivity"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (Exception e) {
-            toast("Takeover paused for 30s. Open the Library from the menu bar now.");
+            toast("Open the Library from the menu bar now (just this once).");
         }
     }
 
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == REQ_APK) {
+            if (res == RESULT_OK && data != null && data.getData() != null) installPickedApk(data.getData());
+            return;
+        }
         if (req == REQ_WALLPAPER && res == RESULT_OK && data != null) {
             Uri wuri = data.getData();
             bg.execute(() -> {
@@ -1103,7 +1128,7 @@ public class MainActivity extends Activity {
         meta.setPadding(dp(16), dp(8), dp(16), dp(8));
         resume.setOnClickListener(v -> finish());
         meta.setOnClickListener(v -> {
-            prefs.pauseTakeover(15_000);
+            prefs.skipNextTakeover(15_000);
             toast("Press the Meta button for Meta's menu");
             finish();
         });

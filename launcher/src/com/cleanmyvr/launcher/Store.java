@@ -483,7 +483,26 @@ final class Store {
         PackageInfo info = pm.getPackageArchiveInfo(apk.getPath(), 0);
         if (info == null) throw new Exception("The downloaded file isn't a valid app");
         rememberPending(info.packageName, s.url, r.tag);
+        return install(apk, info);
+    }
 
+    /** "Install an APK file…": copy the picked file (any app, not just store ones) and install it. */
+    String installLocalApk(android.net.Uri uri) throws Exception {
+        File apk = new File(ctx.getExternalCacheDir(), "store/picked.apk");
+        apk.getParentFile().mkdirs();
+        try (InputStream in = ctx.getContentResolver().openInputStream(uri); OutputStream out = new java.io.FileOutputStream(apk)) {
+            if (in == null) throw new Exception("Couldn't read that file");
+            byte[] buf = new byte[256 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        }
+        PackageInfo info = ctx.getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
+        if (info == null) throw new Exception("That file isn't an Android app (.apk)");
+        return install(apk, info);
+    }
+
+    private String install(File apk, PackageInfo info) throws Exception {
+        PackageManager pm = ctx.getPackageManager();
         PackageInstaller installer = pm.getPackageInstaller();
         PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
         params.setAppPackageName(info.packageName);

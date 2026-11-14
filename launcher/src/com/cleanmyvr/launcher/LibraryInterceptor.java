@@ -43,6 +43,8 @@ public class LibraryInterceptor extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = new java.lang.ref.WeakReference<>(this);
+        SettingsBackup.restoreIfFresh(this);
+        new Thread(() -> SettingsBackup.save(this), "settings-backup").start();
         IntentFilter f = new IntentFilter();
         f.addAction(Intent.ACTION_PACKAGE_ADDED);
         f.addAction(Intent.ACTION_PACKAGE_REMOVED);
@@ -100,7 +102,14 @@ public class LibraryInterceptor extends AccessibilityService {
 
     private void onLibrary(String cls, String knownGame) {
 
-        if (new Prefs(this).takeoverPaused()) return;
+        Prefs prefs = new Prefs(this);
+        if (prefs.takeoverPaused()) return;
+        if (prefs.consumeSkip()) {
+            // One opening sends a few events (Library, system bar): let all of them through, then take over again.
+            prefs.pauseTakeover(3000);
+            Log.i(TAG, "Letting Meta's menu open this once");
+            return;
+        }
         long now = SystemClock.elapsedRealtime();
         if (now - lastFire < 1200) return;      // one press can send Library + system bar events
         // Navigator closing behind the in-game menu sends Library events too: don't let them toggle it shut.
@@ -120,6 +129,8 @@ public class LibraryInterceptor extends AccessibilityService {
         if (MainActivity.wasInFront(now)) {
             Log.i(TAG, "Meta button pressed while launcher showing: closing launcher");
             main.postDelayed(MainActivity::closeIfOpen, 150);
+            // Like Meta's own menus: one press just closes it. Close Navigator too if it's still showing.
+            main.postDelayed(() -> { if (navigatorFocused()) performGlobalAction(GLOBAL_ACTION_BACK); }, 500);
             return;
         }
 
@@ -215,6 +226,21 @@ public class LibraryInterceptor extends AccessibilityService {
             }
         } catch (Exception ignored) { }
         return out;
+    }
+
+    private boolean navigatorFocused() {
+        String p = focusedPackage();
+        return "com.oculus.panelapp.library".equals(p) || "com.oculus.systemux".equals(p);
+    }
+
+    private String focusedPackage() {
+        try {
+            for (android.view.accessibility.AccessibilityWindowInfo w : getWindows()) {
+                AccessibilityNodeInfo r = w.getRoot();
+                if (w.isFocused() && r != null && r.getPackageName() != null) return r.getPackageName().toString();
+            }
+        } catch (Exception ignored) { }
+        return null;
     }
 
     private boolean settingsFocused() {

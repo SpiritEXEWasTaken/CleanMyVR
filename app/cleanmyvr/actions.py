@@ -112,10 +112,12 @@ def block_updates(h: Headset, progress=_noop, st: dict | None = None) -> dict:
     own_state = st is None
     st = st or S.load(h)
     done = []
-    for it in cfg.get("remove", []):
-        r = h.adb.shell(f"pm uninstall -k --user 0 {shlex.quote(it['pkg'])}")
-        if "Success" in r.out or it["pkg"] not in h.adb.packages(0):
-            done.append(f"removed {it['pkg']}")
+    # Removed on every profile: each profile has its own copy (Meta's updater itself runs on profile 0).
+    for uid, _ in h.adb.users():
+        for it in cfg.get("remove", []):
+            r = h.adb.shell(f"pm uninstall -k --user {uid} {shlex.quote(it['pkg'])}")
+            if "Success" in r.out or it["pkg"] not in h.adb.packages(uid):
+                done.append(f"removed {it['pkg']} (profile {uid})")
     rs = cfg.get("restrict")
     if rs:
         pkg = rs["pkg"]
@@ -139,10 +141,11 @@ def block_updates(h: Headset, progress=_noop, st: dict | None = None) -> dict:
 def updates_status(h: Headset, st: dict) -> dict:
     cfg = h.profile.get("update_blocking") or {}
     issues = []
-    installed = h.adb.packages(0)
-    for it in cfg.get("remove", []):
-        if it["pkg"] in installed:
-            issues.append(f"{it['pkg']} is back")
+    for uid, _ in h.adb.users():
+        installed = h.adb.packages(uid)
+        for it in cfg.get("remove", []):
+            if it["pkg"] in installed:
+                issues.append(f"{it['pkg']} is back on profile {uid}")
     rs = cfg.get("restrict")
     if rs:
         ops = h.adb.sh(f"cmd appops get --user 0 {rs['pkg']}")

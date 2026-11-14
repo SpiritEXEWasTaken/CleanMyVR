@@ -82,7 +82,7 @@ accessibility service watches for Meta's Library panel opening, closes it, and o
 launcher. With a panel open (or in a game), Horizon shows only Meta's system bar instead of the Library; the
 launcher treats that as the Meta button too. It reads the name of the panel that opened, nothing else
 (except for Close/Restart App, below). To use
-Meta's Library on purpose, use **⋯ → Open Meta's Library once**.
+Meta's Library on purpose, use **⋯ → Open Meta's Library once** (it lets exactly one opening through).
 
 **In-game menu:** inside a VR game, the Meta button opens the launcher too, over a blurred background
 made from the game's own cover art. A menu shows the game's name and package and has **Open Another
@@ -117,6 +117,10 @@ info page, for a few seconds. Turn the in-game menu off in ⋯ → In-game menu.
   SideQuest apps by threethan (the same source Lightning Launcher uses), for the store name, the wide
   store banner, and whether it's a game. This sends your apps' package names to GitHub; turn it off in
   ⋯ → Covers → Online names & banners. Your own covers and renames always win
+- **Install any APK:** ⋯ → Install an APK file… picks an .apk (Downloads, a USB drive, ...) and installs it
+- **Settings backup:** favorites, renames, categories and store sources are copied next to your covers in
+  `Android/data/com.cleanmyvr.launcher/files/`, and restored automatically after a reinstall if you copy
+  that folder back
 - **Android settings / App info:** Quest blocks apps from opening Android's Settings directly, so
   ⋯ → Android settings (or the Settings tile) opens Settings' own App info page: press **OPEN**
   there. Long-press → App info opens Android's app info page (not Meta's)
