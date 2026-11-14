@@ -1,0 +1,25 @@
+CleanMyVR version numbers
+=========================
+
+Every release has a version number made of three parts: MAJOR.MINOR.PATCH (for example 1.2.0).
+The CleanMyVR app and the launcher always share the same number.
+
+Which part goes up depends on what the release contains:
+
+  MAJOR  (1.2.0 -> 2.0.0)  A big update: a redesign, a large new area of the app, or a change that
+                           works differently from before (for example, settings or backups from older
+                           versions need converting, or a feature people relied on was removed).
+
+  MINOR  (1.2.0 -> 1.3.0)  New features, with nothing that used to work changing in a way people
+                           would notice. Bug fixes can come along too.
+
+  PATCH  (1.2.0 -> 1.2.1)  Bug fixes only. No new features.
+
+When a higher part goes up, the parts after it go back to 0 (1.2.3 -> 1.3.0, 1.3.0 -> 2.0.0).
+
+How to release
+--------------
+
+Change __version__ in app/cleanmyvr/__init__.py to the new number and push it to main. GitHub then
+builds the Windows app and the launcher, writes the release notes from the commit messages, and
+publishes the release. Everyone's CleanMyVR offers the update the next time it starts.

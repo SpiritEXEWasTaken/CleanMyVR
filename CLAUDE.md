@@ -20,7 +20,8 @@ convenience.
 - Commit subjects start with `feat:`, `fix:`, `docs:`, `ci:`, `test:`, `refactor:` or `chore:`; release
   notes are generated from them (`.github/scripts/release_notes.py`).
 - A release happens automatically when `__version__` in `app/cleanmyvr/__init__.py` changes on `main`
-  (`.github/workflows/release.yml`). Only bump it when the user asks for a release. The launcher's
+  (`.github/workflows/release.yml`). Only bump it when the user asks for a release, following VERSIONING.txt
+  (MAJOR for big updates, MINOR for new features, PATCH for bug fixes only). The launcher's
   versionName/versionCode are stamped from it by `launcher/build.sh`.
 - Never change or regenerate the launcher signing key (repo secrets); installed launchers couldn't update.
 

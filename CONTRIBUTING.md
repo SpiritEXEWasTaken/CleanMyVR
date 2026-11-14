@@ -93,7 +93,8 @@ commit message, so the same applies to PR titles.
 
 ## Releases (maintainers)
 
-Change `__version__` in `app/cleanmyvr/__init__.py` (e.g. `1.0.0` → `1.1.0`) and push it to `main`. The
+Change `__version__` in `app/cleanmyvr/__init__.py` and push it to `main`. Which number goes up is
+explained in [VERSIONING.txt](VERSIONING.txt) (big update → 2.0.0, new features → 1.3.0, bug fixes only → 1.2.1). The
 Release workflow then builds the Windows app and the signed launcher, writes the notes (new features, bug
 fixes, new contributors), and publishes the release. Everyone's CleanMyVR offers the update on its next
 start, and the launcher's Store offers the new launcher. The launcher shares this version number.
