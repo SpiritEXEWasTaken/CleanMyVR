@@ -177,7 +177,7 @@ function wire() {
   $("#btn-connect").onclick = () => doConnect(false);
   $("#btn-download").onclick = () => doConnect(true);
   $("#btn-recheck").onclick = overview;
-  $("#btn-fix").onclick = () => run("fix_drift", {}, "Re-remove apps that came back and re-apply update blocking?");
+  $("#btn-fix").onclick = () => run("fix_drift", {}, "Re-remove apps that came back, re-apply update blocking and restart the launcher if it stopped?");
   document.querySelectorAll('input[name="level"]').forEach((i) => (i.onchange = debloatPreview));
   $("#btn-debloat").onclick = () => {
     const keep = [...document.querySelectorAll(".db-pick")].filter((c) => !c.checked).map((c) => c.value);
@@ -191,6 +191,7 @@ function wire() {
   };
   $("#btn-env").onclick = envPage;
   $("#btn-ln-install").onclick = () => run("install_launcher");
+  $("#btn-ln-repair").onclick = () => run("repair_launcher");
   $("#btn-ln-remove").onclick = () => run("uninstall_launcher", {}, "Remove the launcher and give the Library back to Meta?");
   $("#btn-rs-apps").onclick = () => run("restore", {user: picked("rsuser")}, "Reinstall the apps listed?");
   $("#btn-rs-pick").onclick = async () => { const f = await api.choose_folder(); if (f) $("#rs-src").value = f; };

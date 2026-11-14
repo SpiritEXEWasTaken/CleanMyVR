@@ -197,6 +197,9 @@ def menu_restore(h):
 def menu_launcher(h):
     user = h.adb.current_user()
     installed = launcher.PKG in h.adb.packages(user)
+    if installed and launcher.takeover_state(h) == "stopped" and yes("The Library takeover stopped (crash). Restart it?"):
+        launcher.repair(h, user, progress)
+        return
     if installed and yes("Launcher is installed. Update/reinstall it?") or not installed and yes("Install the launcher?"):
         launcher.install(h, user, progress)
     elif installed and yes("Remove the launcher instead?"):
@@ -224,6 +227,8 @@ def fix_drift(h, rc):
                 actions.debloat(h, level, it["user"], progress)
         if it["area"] == "updates" and it["status"] == "drift" and yes("Re-apply update blocking?"):
             actions.block_updates(h, progress)
+        if it["area"] == "launcher" and it["status"] == "drift" and yes("Restart the launcher's Library takeover?"):
+            launcher.repair(h, it.get("user"), progress)
 
 
 def offer_update() -> None:

@@ -35,6 +35,32 @@ final class AppRepo {
         long lastUsed;
     }
 
+    /**
+     * Meta-made apps nobody opens on purpose: helper screens, setup flows, duplicates. Hidden (with the rest of
+     * the system) instead of showing in the "Meta Stock" tab. Meta settings is in ⋯ → Settings.
+     */
+    static final java.util.Set<String> STOCK_HIDDEN = new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.oculus.vrshell",            // Meta Horizon Shell (Home itself)
+            "com.oculus.os.clearactivity", "com.oculus.os.voidactivity",   // blank helper screens
+            "com.oculus.guardiansetup",      // "Guardian Setup Activity" (boundary setup runs by itself)
+            "com.oculus.os.qrcodereader",    // QrCodeReader
+            "com.meta.linktabula.viewer",    // Tabula Viewer
+            "com.oculus.accountscenter",     // Accounts Center
+            "com.oculus.panelapp.settings",  // Meta settings: ⋯ → Settings
+            "com.android.settings",          // Android settings: ⋯ → Settings
+            "com.android.documentsui",       // Android's file picker (Meta's Files is com.oculus.systemutilities)
+            "com.oculus.xrstreamingclient"));// "Link" helper (Meta Horizon Link is the app to open)
+
+    /** Meta-made, but normal apps people use: they stay in Apps, not Meta Stock. */
+    static final java.util.Set<String> META_REGULAR_APPS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.oculus.facebook",           // Facebook
+            "com.oculus.igvr"));             // Instagram
+
+    /** Made by Meta (or part of the system), so it belongs in "Meta Stock" rather than Apps. */
+    static boolean madeByMeta(App a) {
+        return a.system || a.pkg.startsWith("com.oculus.") || a.pkg.startsWith("com.meta.") || a.pkg.startsWith("com.facebook.");
+    }
+
     // App-wide cache so the launcher opens instantly; refreshed in the background.
     private static volatile List<App> cached;
     private static volatile long cachedAt;

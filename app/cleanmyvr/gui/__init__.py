@@ -102,6 +102,7 @@ class Api:
             "delete_captures": lambda: actions.delete_captures(h, self._log),
             "install_launcher": lambda: launcher.install(h, h.adb.current_user(), self._log),
             "uninstall_launcher": lambda: launcher.uninstall(h, h.adb.current_user(), self._log),
+            "repair_launcher": lambda: launcher.repair(h, None, self._log),
             "adopt": lambda: actions.adopt(h, self._log),
             "install_play_apps": lambda: extras.install_play_apps(h, self._log),
             "remove_play_apps": lambda: extras.remove_play_apps(h, self._log),
@@ -132,6 +133,8 @@ class Api:
                 actions.debloat(h, level, it["user"], self._log)
             elif it["area"] == "updates":
                 actions.block_updates(h, self._log)
+            elif it["area"] == "launcher":
+                launcher.repair(h, it.get("user"), self._log)
         return {"fixed": True}
 
     # ---------------------------------------------------------------- helpers

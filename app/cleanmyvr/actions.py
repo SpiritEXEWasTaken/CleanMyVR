@@ -306,9 +306,14 @@ def recheck(h: Headset) -> dict:
     else:
         have = h.adb.sh("dumpsys package com.cleanmyvr.launcher | grep -m1 versionName").split("=")[-1].strip()
         old = _vtuple(have) < _vtuple(__version__)
-        items.append({"area": "launcher", "status": "todo" if old else "ok",
-                      "text": f"Launcher {have} installed; {__version__} comes with this CleanMyVR (Launcher → Install / update)"
-                      if old else f"Launcher {have} installed"})
+        from . import launcher as L
+        if L.takeover_state(h) == "stopped":
+            items.append({"area": "launcher", "status": "drift", "user": h.adb.current_user(),
+                          "text": "Library takeover stopped (the launcher crashed); Fix restarts it"})
+        else:
+            items.append({"area": "launcher", "status": "todo" if old else "ok",
+                          "text": f"Launcher {have} installed; {__version__} comes with this CleanMyVR (Launcher → Install / update)"
+                          if old else f"Launcher {have} installed"})
     env = environment_status(h)
     if env["available"]:
         items.append({"area": "environment", "status": "problem" if env["problem"] else "ok",

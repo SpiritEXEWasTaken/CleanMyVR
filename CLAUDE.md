@@ -74,7 +74,15 @@ convenience.
   `com.oculus.panelapp.library` in games). In games `LibraryActivity` events arrive when Navigator *closes*.
 - Navigator ignores `GLOBAL_ACTION_BACK` and `GLOBAL_ACTION_HOME`; an app coming to the front dismisses it
   (the launcher's toggle starts itself with `EXTRA_CLOSE`, then finishes).
+- Dead end (tested, don't retry): at an empty Home, Meta's full Library panel can't be closed by an app. It ignores
+  Back/Home and ACTION_DISMISS, has no close button, survives an app (or an invisible activity) coming forward,
+  and its bar's "Library" button toggles from a state apps can't read (it reopened the panel). Only the Meta
+  button closes it, so there the toggle leaves the Library showing; with a panel open it closes everything.
 - Settings' App info is Compose (`spa.SpaActivity`): no view IDs, and `findAccessibilityNodeInfosByText`
   misses text; walk the node tree. Its confirm dialog is a separate window. Opened from an Activity (no
   NEW_TASK) it joins the launcher's task, so relaunching the singleTask launcher closes it.
+- A crashed accessibility service isn't restarted by Android. Re-enabling it while the crashed process is still
+  alive (the "keeps stopping" dialog holds it) leaves it stuck in "Binding services"; only `am force-stop` clears
+  that. The launcher's `CrashGuard` ends the process itself and restarts the takeover from its `:guard` process
+  (needs `WRITE_SECURE_SETTINGS`, granted by `launcher.install`/`repair`); `launcher.repair` force-stops first.
 - `com.android.settings/.Settings` isn't exported to apps; open App info (`ACTION_APPLICATION_DETAILS_SETTINGS`) instead.

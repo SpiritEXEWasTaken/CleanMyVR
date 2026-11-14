@@ -117,6 +117,12 @@ info page, for a few seconds. Turn the in-game menu off in ⋯ → In-game menu.
   SideQuest apps by threethan (the same source Lightning Launcher uses), for the store name, the wide
   store banner, and whether it's a game. This sends your apps' package names to GitHub; turn it off in
   ⋯ → Covers → Online names & banners. Your own covers and renames always win
+- **Meta Stock:** a tab with the built-in apps you still need (Store, Browser, Meta settings, TV, Gallery,
+  Camera, Files, Quest Link, Remote Desktop, Boundary setup...). Everything else Meta ships (Accounts Center,
+  helper screens, background services) stays hidden. ⋯ → Settings ▸ has Meta settings and Android settings
+- **Crash guard:** if the launcher crashes, a small watcher in its own process restarts the Library takeover
+  (Android doesn't) and reopens the launcher if it was on screen. CleanMyVR grants the one permission this
+  needs when it installs the launcher; Recheck and Launcher → Repair fix a stopped takeover too
 - **Install any APK:** ⋯ → Install an APK file… picks an .apk (Downloads, a USB drive, ...) and installs it
 - **Settings backup:** favorites, renames, categories and store sources are copied next to your covers in
   `Android/data/com.cleanmyvr.launcher/files/`, and restored automatically after a reinstall if you copy

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from .device import Headset
 
 PKG = "com.cleanmyvr.launcher"
 SERVICE = f"{PKG}/{PKG}.LibraryInterceptor"
+# Lets the launcher's crash guard restart its own Library takeover (only a computer can grant it).
+GUARD_PERMISSION = "android.permission.WRITE_SECURE_SETTINGS"
 
 
 def find_apk() -> Path | None:
@@ -47,6 +50,7 @@ def install(h: Headset, user: int, progress=lambda m: None) -> dict:
     progress("Launcher installed")
     h.adb.shell(f"appops set --user {user} {PKG} GET_USAGE_STATS allow")
     h.adb.shell(f"appops set --user {user} {PKG} REQUEST_INSTALL_PACKAGES allow")
+    h.adb.shell(f"pm grant --user {user} {PKG} {GUARD_PERMISSION}")
     _set_service(h, user, False)       # an update unbinds the service; toggling re-binds it
     _set_service(h, user, True)
     progress("Library takeover on, store installs and 'Continue playing' allowed")
@@ -56,6 +60,40 @@ def install(h: Headset, user: int, progress=lambda m: None) -> dict:
     S.record(st, "install_launcher", user, version=version)
     S.save(h, st)
     return {"version": version}
+
+
+def takeover_state(h: Headset) -> str:
+    """For the active profile (only its takeover runs): "running", "stopped" (on, but crashed / not running)
+    or "off"."""
+    user = h.adb.current_user()
+    enabled = h.adb.sh(f"settings --user {user} get secure enabled_accessibility_services")
+    if PKG + "/" not in enabled:
+        return "off"
+    dump = h.adb.sh("dumpsys accessibility")
+    for block in dump.split("User state[")[1:]:
+        if not re.search(rf"\bid={user}\b", block.split("\n", 2)[1] if "\n" in block else block):
+            continue
+        bound = re.search(r"Bound services:\{(.*)", block)
+        crashed = re.search(r"Crashed services:\{(.*)", block)
+        if crashed and PKG in crashed.group(1):
+            return "stopped"
+        return "running" if bound and "Launcher: replace Library" in bound.group(1) else "stopped"
+    return "stopped"
+
+
+def repair(h: Headset, user: int | None = None, progress=lambda m: None) -> None:
+    """Restart the Library takeover (after a crash Android doesn't restart it) and make sure the launcher's own
+    crash guard is allowed to do that next time."""
+    user = h.adb.current_user() if user is None else user
+    h.adb.shell(f"pm grant --user {user} {PKG} {GUARD_PERMISSION}")
+    # After a crash Android can stay stuck "binding" the service; a force-stop clears that, then re-enable it.
+    h.adb.shell(f"am force-stop --user {user} {PKG}")
+    _set_service(h, user, False)
+    _set_service(h, user, True)
+    st = S.load(h)
+    S.record(st, "repair_launcher", user)
+    S.save(h, st)
+    progress("Library takeover restarted")
 
 
 def uninstall(h: Headset, user: int, progress=lambda m: None) -> None:

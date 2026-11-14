@@ -27,6 +27,19 @@ public class LibraryInterceptor extends AccessibilityService {
     private static final String TAG = "CleanMyVrLauncher";
     private final Handler main = new Handler(Looper.getMainLooper());
     private long lastFire, lastGameMenu;
+    /** When this profile's service started (boot or switching profiles). */
+    private static volatile long connectedAt;
+
+    /** The first seconds of a profile: Horizon may show its Library or restore old panels by itself. */
+    static boolean profileJustStarted(android.content.Context c) {
+        if (connectedAt != 0) return SystemClock.elapsedRealtime() - connectedAt < 6_000;
+        // Not connected yet: that's startup only right after boot with the takeover on (it's about to start).
+        // Later (takeover off, or stopped after a crash) the launcher must still open normally.
+        if (SystemClock.elapsedRealtime() > 120_000) return false;
+        String on = android.provider.Settings.Secure.getString(c.getContentResolver(),
+                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        return on != null && on.contains(c.getPackageName() + "/");
+    }
     private static java.lang.ref.WeakReference<LibraryInterceptor> instance = new java.lang.ref.WeakReference<>(null);
 
     // A Force stop we're pressing for the user (see forceStop).
@@ -43,6 +56,8 @@ public class LibraryInterceptor extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = new java.lang.ref.WeakReference<>(this);
+        CrashGuard.install(this);
+        connectedAt = SystemClock.elapsedRealtime();
         SettingsBackup.restoreIfFresh(this);
         new Thread(() -> SettingsBackup.save(this), "settings-backup").start();
         IntentFilter f = new IntentFilter();
@@ -84,6 +99,10 @@ public class LibraryInterceptor extends AccessibilityService {
         }
     }
 
+    /**
+     * At an empty Home, Meta's Library panel isn't closed by the launcher covering it: when the launcher
+     * closes, it takes focus again. If that happens, go Home (Horizon's own "close the menus").
+     */
     static boolean isSystemBar(String pkg, String cls) {
         return (pkg.equals("com.oculus.panelapp.library") || pkg.equals("com.oculus.systemux")) && cls.endsWith("SystemBarActivity");
     }
@@ -104,6 +123,10 @@ public class LibraryInterceptor extends AccessibilityService {
 
         Prefs prefs = new Prefs(this);
         if (prefs.takeoverPaused()) return;
+        if (profileJustStarted(this)) {
+            Log.i(TAG, "Library opened while the profile was starting: leaving it to Meta (" + cls + ")");
+            return;
+        }
         if (prefs.consumeSkip()) {
             // One opening sends a few events (Library, system bar): let all of them through, then take over again.
             prefs.pauseTakeover(3000);

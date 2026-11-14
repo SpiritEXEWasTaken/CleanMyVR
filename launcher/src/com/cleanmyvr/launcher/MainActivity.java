@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     static final String EXTRA_GAME = "game";
     /** Meta pressed while the launcher was showing: come forward (dismisses Navigator), then close. */
     static final String EXTRA_CLOSE = "close";
-    static final String TAB_FAV = "fav", TAB_ALL = "all", TAB_VR = "vr", TAB_2D = "2d", TAB_SIDE = "side";
+    static final String TAB_FAV = "fav", TAB_ALL = "all", TAB_VR = "vr", TAB_2D = "2d", TAB_SIDE = "side", TAB_STOCK = "stock";
     private static final String CAT_PREFIX = "cat:";
     private static final int REQ_COVER = 1, REQ_WALLPAPER = 2, REQ_APK = 3;
 
@@ -95,6 +95,9 @@ public class MainActivity extends Activity {
 
     /** The live launcher window, so the Meta button can close it (see LibraryInterceptor). */
     private static java.lang.ref.WeakReference<MainActivity> current = new java.lang.ref.WeakReference<>(null);
+
+    /** On screen right now (the crash guard reopens the launcher only if it was). */
+    static boolean isVisible() { return isAlive() && resumed; }
 
     static boolean isAlive() {
         MainActivity a = current.get();
@@ -142,7 +145,15 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        // Horizon reopens panels that were open at shutdown. Don't come back by ourselves at startup:
+        // only when someone opened us (Meta button, or tapping the launcher once the profile is up).
+        if (!getIntent().getBooleanExtra(EXTRA_FROM_LIBRARY, false) && b == null && LibraryInterceptor.profileJustStarted(this)) {
+            android.util.Log.i("CleanMyVrLauncher", "launcher reopened by itself at startup: closing");
+            finish();
+            return;
+        }
         current = new java.lang.ref.WeakReference<>(this);
+        CrashGuard.install(this);
         SettingsBackup.restoreIfFresh(this);
         prefs = new Prefs(this);
         repo = new AppRepo(this);
@@ -166,6 +177,8 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        // The takeover is switched on but not running (it crashed some time ago): restart it.
+        if (CrashGuard.takeoverStuck(this)) CrashGuard.restartTakeover(this, ui, () -> toast("Library takeover restarted"));
         if (stopAttempted) { stopAttempted = false; showGameMenu(null); }
         if (AppRepo.stale()) {
             reload();
@@ -496,6 +509,7 @@ public class MainActivity extends Activity {
         addTab("Games", TAB_VR);
         addTab("Apps", TAB_2D);
         addTab("Sideloaded", TAB_SIDE);
+        addTab("Meta Stock", TAB_STOCK);
         LinkedHashMap<String, List<String>> cats = prefs.categories();
         for (String c : cats.keySet()) addTab(c, CAT_PREFIX + c);
         if (tab.startsWith(CAT_PREFIX) && !cats.containsKey(tab.substring(CAT_PREFIX.length()))) {
@@ -547,13 +561,20 @@ public class MainActivity extends Activity {
         boolean showHidden = prefs.showHidden();
         List<AppRepo.App> visible = new ArrayList<>();
         boolean showSystem = prefs.showSystem();
-        for (AppRepo.App a : apps)
-            if ((showHidden || !hidden.contains(a.pkg)) && (showSystem || !a.system)) visible.add(a);
+        List<AppRepo.App> stock = new ArrayList<>();      // Meta's own apps: their own tab, not in All/Apps
+        for (AppRepo.App a : apps) {
+            if (!showHidden && hidden.contains(a.pkg)) continue;
+            boolean meta = isMetaStock(a);
+            if (meta) stock.add(a);
+            else if (showSystem || !a.system) visible.add(a);
+        }
 
         if (!query.isEmpty()) {
             List<AppRepo.App> hits = new ArrayList<>();
             String q = query.toLowerCase(Locale.ROOT);
-            for (AppRepo.App a : visible)
+            List<AppRepo.App> searchable = new ArrayList<>(visible);
+            for (AppRepo.App a : stock) if (!searchable.contains(a)) searchable.add(a);
+            for (AppRepo.App a : searchable)
                 if (displayName(a).toLowerCase(Locale.ROOT).contains(q) || a.label.toLowerCase(Locale.ROOT).contains(q)
                         || a.pkg.toLowerCase(Locale.ROOT).contains(q)) hits.add(a);
             section("Results for “" + query + "”");
@@ -607,6 +628,11 @@ public class MainActivity extends Activity {
             heading = "Sideloaded";
             for (AppRepo.App a : visible) if (a.sideloaded) list.add(a);
             empty = "No sideloaded apps.";
+        } else if (tab.equals(TAB_STOCK)) {
+            heading = "Meta Stock";
+            list = stock;
+            list.sort((x, y) -> displayName(x).compareToIgnoreCase(displayName(y)));
+            empty = "No built-in Meta apps found.";
         } else if (tab.startsWith(CAT_PREFIX)) {
             String c = tab.substring(CAT_PREFIX.length());
             heading = c;
@@ -910,7 +936,12 @@ public class MainActivity extends Activity {
         covers.add("Use built-in app banners").setCheckable(true).setChecked(prefs.useAppBanners())
                 .setOnMenuItemClickListener(i -> { prefs.setUseAppBanners(!prefs.useAppBanners()); render(); return true; });
         menu.add("Install an APK file…").setOnMenuItemClickListener(i -> { pickApk(); return true; });
-        menu.add("Android settings").setOnMenuItemClickListener(i -> { openAndroidSettings(); return true; });
+        SubMenu settings = menu.addSubMenu("Settings ▸");
+        settings.add("Meta settings").setOnMenuItemClickListener(i -> {
+            if (!repo.launch("com.oculus.panelapp.settings")) toast("Meta settings aren't available");
+            return true;
+        });
+        settings.add("Android settings").setOnMenuItemClickListener(i -> { openAndroidSettings(); return true; });
         menu.add("In-game menu (Meta button in VR games)").setCheckable(true).setChecked(prefs.inGameMenu())
                 .setOnMenuItemClickListener(i -> {
                     prefs.setInGameMenu(!prefs.inGameMenu());
@@ -956,6 +987,15 @@ public class MainActivity extends Activity {
                 ui.post(() -> toast(e.getMessage() != null ? e.getMessage() : "Couldn't install that file"));
             }
         });
+    }
+
+    /**
+     * "Meta Stock": apps Meta makes that aren't games (Store, Browser, TV, Help & Tips, ...). Games made by Meta
+     * stay with the games; helper screens and setup flows (AppRepo.STOCK_HIDDEN) stay hidden.
+     */
+    boolean isMetaStock(AppRepo.App a) {
+        return AppRepo.madeByMeta(a) && !AppRepo.STOCK_HIDDEN.contains(a.pkg)
+                && !AppRepo.META_REGULAR_APPS.contains(a.pkg) && !isGame(a);
     }
 
     /** Android's App info page, not Meta's. */
@@ -1031,8 +1071,10 @@ public class MainActivity extends Activity {
     /** Best guess from what the app declares about itself, how it's installed and its name. */
     static int guess(AppRepo.App a) {
         String p = a.pkg;
-        if (a.system || p.startsWith("com.oculus.") || p.startsWith("com.meta.") || p.startsWith("com.facebook.")
-                || p.startsWith("com.android.") || p.startsWith("horizonos")) return GUESS_APP;
+        if (a.system || p.startsWith("com.android.") || p.startsWith("horizonos")) return GUESS_APP;
+        // Meta's own apps: games like First Encounters are listed as Games in the store; the rest are apps.
+        if (p.startsWith("com.oculus.") || p.startsWith("com.meta.") || p.startsWith("com.facebook."))
+            return "Games".equalsIgnoreCase(a.storeCategory) ? GUESS_GAME : GUESS_APP;
         if (a.storeCategory != null) return a.storeCategory.equalsIgnoreCase("Games") ? GUESS_GAME : GUESS_APP;
         if (a.gameFlag || a.category == android.content.pm.ApplicationInfo.CATEGORY_GAME) return GUESS_GAME;
         if (a.category != android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED) return GUESS_APP;

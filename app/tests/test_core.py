@@ -9,7 +9,7 @@ from pathlib import Path
 
 from unittest import mock
 
-from cleanmyvr import backup, updater
+from cleanmyvr import backup, launcher, updater
 
 from cleanmyvr import actions, device
 from cleanmyvr import state as S
@@ -202,6 +202,42 @@ class Actions(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             actions.debloat(h, "balanced", 0)
         self.assertIn("com.oculus.facebook", fake.pkgs[0])
+
+
+class Takeover(unittest.TestCase):
+    DUMP = """User state[
+     attributes:{id=0, touchExplorationEnabled=false}
+     Bound services:{%s}
+     Enabled services:{{com.cleanmyvr.launcher/com.cleanmyvr.launcher.LibraryInterceptor}}
+     Crashed services:{%s}
+"""
+
+    def fake(self, enabled, bound, crashed=""):
+        f = FakeAdb(["com.cleanmyvr.launcher"], props=QUEST3_PROPS)
+        orig = f.shell
+        def shell(cmd, timeout=120):
+            if cmd.startswith("settings --user 0 get secure enabled_accessibility_services"):
+                return Result(0, launcher.SERVICE if enabled else "null")
+            if cmd == "dumpsys accessibility":
+                return Result(0, self.DUMP % ("Service[label=Launcher: replace Library, x]" if bound else "", crashed))
+            return orig(cmd, timeout)
+        f.shell = shell
+        return f
+
+    def test_states(self):
+        self.assertEqual(launcher.takeover_state(headset(self.fake(True, True))), "running")
+        self.assertEqual(launcher.takeover_state(headset(self.fake(True, False))), "stopped")
+        self.assertEqual(launcher.takeover_state(headset(self.fake(True, True, "com.cleanmyvr.launcher/x"))), "stopped")
+        self.assertEqual(launcher.takeover_state(headset(self.fake(False, False))), "off")
+
+    def test_recheck_offers_repair_and_repair_restarts(self):
+        f = self.fake(True, False)
+        h = headset(f)
+        item = next(i for i in actions.recheck(h)["items"] if i["area"] == "launcher")
+        self.assertEqual(item["status"], "drift")
+        launcher.repair(h, 0)
+        self.assertTrue(any("pm grant --user 0 com.cleanmyvr.launcher android.permission.WRITE_SECURE_SETTINGS" in c for c in f.log))
+        self.assertEqual(S.load(h)["history"][-1]["action"], "repair_launcher")
 
 
 class UpdateBlocking(unittest.TestCase):
