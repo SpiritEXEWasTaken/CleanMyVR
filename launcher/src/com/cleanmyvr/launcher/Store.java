@@ -40,6 +40,49 @@ final class Store {
     static final class Release {
         String tag, assetName, assetUrl;
         long size;
+        long downloads = -1;   // all releases' APK downloads together (GitHub, Gitea); -1 = unknown
+        int stars = -1;        // -1 = unknown
+        String license;        // e.g. "GPL-3.0", null = unknown
+    }
+
+    private static final long INFO_TTL = 24L * 3600 * 1000;
+
+    /** Stars and license for a repository, cached for a day (GitHub allows 60 anonymous requests an hour). */
+    private void addRepoInfo(Repo r, Release rel) {
+        String key = "info:" + r.host + "/" + r.path;
+        try {
+            JSONObject cached = sp.contains(key) ? new JSONObject(sp.getString(key, "{}")) : null;
+            if (cached == null || System.currentTimeMillis() - cached.optLong("at") > INFO_TTL) {
+                JSONObject o, out = new JSONObject();
+                switch (r.kind) {
+                    case "github": {
+                        o = Http.getObject("https://api.github.com/repos/" + r.path);
+                        out.put("stars", o.optInt("stargazers_count", -1));
+                        JSONObject lic = o.optJSONObject("license");
+                        String id = lic != null ? lic.optString("spdx_id", "") : "";
+                        if (!id.isEmpty() && !id.equals("NOASSERTION")) out.put("license", id);
+                        break;
+                    }
+                    case "gitlab":
+                        o = Http.getObject("https://" + r.host + "/api/v4/projects/" + URLEncoder.encode(r.path, "UTF-8") + "?license=true");
+                        out.put("stars", o.optInt("star_count", -1));
+                        if (o.optJSONObject("license") != null) out.put("license", o.getJSONObject("license").optString("nickname", o.getJSONObject("license").optString("key", "")));
+                        break;
+                    default: {
+                        o = Http.getObject("https://" + r.host + "/api/v1/repos/" + r.path);
+                        out.put("stars", o.optInt("stars_count", -1));
+                        JSONArray lics = o.optJSONArray("licenses");
+                        if (lics != null && lics.length() > 0) out.put("license", lics.getString(0));
+                    }
+                }
+                out.put("at", System.currentTimeMillis());
+                sp.edit().putString(key, out.toString()).apply();
+                cached = out;
+            }
+            rel.stars = cached.optInt("stars", -1);
+            String lic = cached.optString("license", "");
+            rel.license = lic.isEmpty() ? null : lic;
+        } catch (Exception ignored) { }   // the card just shows less
     }
 
     /**
@@ -79,10 +122,13 @@ final class Store {
     }
 
     /** Refresh the remote catalog if one is configured (background thread). */
-    void refreshCatalog() {
+    void refreshCatalog() { refreshCatalog(false); }
+
+    /** force: pull to refresh on the Store page fetches the list now instead of waiting a day. */
+    void refreshCatalog(boolean force) {
         if (CATALOG_URL.isEmpty()) return;
         File remote = new File(ctx.getFilesDir(), "catalog.json");
-        if (remote.exists() && System.currentTimeMillis() - remote.lastModified() < CATALOG_TTL) return;
+        if (!force && remote.exists() && System.currentTimeMillis() - remote.lastModified() < CATALOG_TTL) return;
         try {
             String body = Http.getText(CATALOG_URL);
             if (new JSONObject(body).optJSONArray("apps") == null) return;   // don't replace with junk
@@ -421,16 +467,26 @@ final class Store {
                 for (int i = 0; i < a.length(); i++) releases.add(a.getJSONObject(i));
             }
         }
-        Release fallback = null;
+        long downloads = r.kind.equals("gitlab") ? -1 : 0;
+        if (downloads == 0) for (JSONObject rel : releases) {
+            JSONArray as = rel.optJSONArray("assets");
+            if (as != null) for (int i = 0; i < as.length(); i++)
+                if (as.getJSONObject(i).optString("name").toLowerCase(Locale.ROOT).endsWith(".apk"))
+                    downloads += as.getJSONObject(i).optLong("download_count", 0);
+        }
+        Release chosen = null, fallback = null;
         for (JSONObject rel : releases) {
             if (rel.optBoolean("draft")) continue;
             Release pick = pickAsset(rel, s.assetHint);
             if (pick == null) continue;
-            if (!rel.optBoolean("prerelease")) return pick;
+            if (!rel.optBoolean("prerelease")) { chosen = pick; break; }
             if (fallback == null) fallback = pick;
         }
-        if (fallback != null) return fallback;
-        throw new Exception("No release with an APK found");
+        if (chosen == null) chosen = fallback;
+        if (chosen == null) throw new Exception("No release with an APK found");
+        chosen.downloads = downloads;
+        addRepoInfo(r, chosen);
+        return chosen;
     }
 
     private static Release pickAsset(JSONObject rel, String hint) throws Exception {

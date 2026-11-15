@@ -71,7 +71,7 @@ final class StorePage {
         add.setOnClickListener(v -> addSource());
         bar.addView(add, lp(m.dp(10)));
         TextView check = m.pill("↻  Check for updates", false);
-        check.setOnClickListener(v -> { fetchedAt.clear(); errors.clear(); m.render(); });
+        check.setOnClickListener(v -> refreshAll());
         bar.addView(check, lp(m.dp(10)));
         content.addView(bar);
 
@@ -106,6 +106,9 @@ final class StorePage {
         foot.setPadding(0, m.dp(16), 0, 0);
         content.addView(foot);
     }
+
+    /** Re-check every app's latest release (and re-read the list). */
+    void refreshAll() { fetchedAt.clear(); errors.clear(); m.render(); }
 
     private static String key(Store.Source s) { return Store.normalize(s.url); }
 
@@ -169,6 +172,12 @@ final class StorePage {
         metaT.setSingleLine(true);
         metaT.setEllipsize(TextUtils.TruncateAt.END);
         texts.addView(metaT);
+        String stats = stats(r);
+        if (!stats.isEmpty()) {
+            TextView st = m.text(stats, 12, MainActivity.MUTED, false);
+            st.setSingleLine(true);
+            texts.addView(st);
+        }
         card.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
 
         String prog = progress.get(k);
@@ -297,6 +306,22 @@ final class StorePage {
         } catch (Exception e) {
             try { m.startActivity(i); } catch (Exception e2) { m.toast("Allow it with: adb shell appops set com.cleanmyvr.launcher REQUEST_INSTALL_PACKAGES allow"); }
         }
+    }
+
+    /** "★ 12  ·  ⬇ 3.4k downloads  ·  GPL-3.0" (whatever is known). */
+    private static String stats(Store.Release r) {
+        if (r == null) return "";
+        List<String> parts = new ArrayList<>();
+        if (r.stars >= 0) parts.add("★ " + shortNumber(r.stars));
+        if (r.downloads >= 0) parts.add("⬇ " + shortNumber(r.downloads) + (r.downloads == 1 ? " download" : " downloads"));
+        if (r.license != null) parts.add(r.license);
+        return String.join("  ·  ", parts);
+    }
+
+    private static String shortNumber(long n) {
+        if (n < 1000) return String.valueOf(n);
+        if (n < 1_000_000) return String.format(Locale.ROOT, n < 10_000 ? "%.1fk" : "%.0fk", n / 1000.0);
+        return String.format(Locale.ROOT, "%.1fM", n / 1_000_000.0);
     }
 
     private LinearLayout card() {

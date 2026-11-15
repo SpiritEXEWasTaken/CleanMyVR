@@ -45,10 +45,10 @@
       "pkg": "org.localsend.localsend_app"
     },
     {
-      "url": "https://github.com/TeamNewPipe/NewPipe",
-      "name": "NewPipe",
-      "description": "Lightweight YouTube client without ads",
-      "pkg": "org.schabi.newpipe"
+      "url": "https://github.com/SpiritEXEWasTaken/PipeVR",
+      "name": "PipeVR",
+      "description": "YouTube, Twitch, Kick and more, with a native VR mode (a VR fork of PipePipe)",
+      "pkg": "com.pipevr.app"
     },
     {
       "url": "https://f-droid.org/packages/com.aurora.store/",

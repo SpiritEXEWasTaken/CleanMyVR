@@ -1171,7 +1171,10 @@ public class MainActivity extends Activity {
         coverCache.clear();
         colorCache.clear();
         reload();
-        if (prefs.storeMode() && storePage != null) net.execute(() -> new Store(this).refreshCatalog());
+        if (prefs.storeMode() && storePage != null) net.execute(() -> {
+            new Store(this).refreshCatalog(true);
+            ui.post(storePage::refreshAll);
+        });
         ui.postDelayed(() -> { pullHint.setVisibility(View.GONE); toast("Apps refreshed"); }, 900);
     }
 
