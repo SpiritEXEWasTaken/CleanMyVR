@@ -140,7 +140,15 @@ public class LibraryInterceptor extends AccessibilityService {
         lastFire = now;
 
         // Inside a VR game the Meta button opens Navigator: show our in-game menu instead (unless turned off).
-        String game = knownGame != null ? knownGame : vrAppInFront();
+        String found = knownGame != null ? knownGame : vrAppInFront();
+        if (found == null && !cls.endsWith("LibraryActivity")) {
+            // Right after a profile switch Android's usage record can lag a moment behind: look once more.
+            // (Only when Navigator opened as the bar, i.e. something may be in front; not at an empty Home.)
+            SystemClock.sleep(250);
+            found = vrAppInFront();
+            if (found == null) Log.i(TAG, "no VR game in front: " + lastSeen);
+        }
+        final String game = found;
         if (game != null && !new Prefs(this).inGameMenu()) {
             Log.i(TAG, "Navigator opened over " + game + ": in-game menu is off, leaving it to Meta");
             return;
@@ -367,6 +375,8 @@ public class LibraryInterceptor extends AccessibilityService {
      * the most recently resumed non-shell app, if it's a VR app and hasn't stopped since.
      * (Immersive apps don't show up as windows to accessibility services, so this is the reliable way.)
      */
+    private String lastSeen = "";
+
     private String vrAppInFront() {
         try {
             UsageStatsManager usm = (UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
@@ -386,8 +396,12 @@ public class LibraryInterceptor extends AccessibilityService {
                     state.put(p, t);
                 }
             }
-            if (last == null || Integer.valueOf(UsageEvents.Event.ACTIVITY_STOPPED).equals(state.get(last))) return null;
-            return isVrApp(last) ? last : null;
+            if (last == null || Integer.valueOf(UsageEvents.Event.ACTIVITY_STOPPED).equals(state.get(last))) {
+                lastSeen = "last app " + last + (last != null ? " (stopped)" : "");
+                return null;
+            }
+            if (!isVrApp(last)) { lastSeen = "last app " + last + " (not a VR app)"; return null; }
+            return last;
         } catch (Exception e) {
             return null;
         }
