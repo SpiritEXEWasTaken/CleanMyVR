@@ -1,5 +1,10 @@
 # CleanMyVR
 
+[![Downloads](https://img.shields.io/github/downloads/SpiritEXEWasTaken/CleanMyVR/total?label=downloads&color=2185A6)](https://github.com/SpiritEXEWasTaken/CleanMyVR/releases)
+[![Stars](https://img.shields.io/github/stars/SpiritEXEWasTaken/CleanMyVR?color=BA1839)](https://github.com/SpiritEXEWasTaken/CleanMyVR/stargazers)
+[![Latest release](https://img.shields.io/github/v/release/SpiritEXEWasTaken/CleanMyVR?label=release)](https://github.com/SpiritEXEWasTaken/CleanMyVR/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/SpiritEXEWasTaken/CleanMyVR)](LICENSE)
+
 Debloat, clean up, back up and fix a **Meta Quest** over USB, with a guided app for Windows, macOS
 and Linux. No root, nothing to sideload onto the headset, and every change can be undone. Inspired by
 [cleanyourtv](https://github.com/Gathin23/cleanyourtv).
