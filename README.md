@@ -133,6 +133,7 @@ info page, for a few seconds. Turn the in-game menu off in ⋯ → In-game menu.
 - **Crash guard:** if the launcher crashes, a small watcher in its own process restarts the Library takeover
   (Android doesn't) and reopens the launcher if it was on screen. CleanMyVR grants the one permission this
   needs when it installs the launcher; Recheck and Launcher → Repair fix a stopped takeover too
+- **Pull to refresh:** at the top of the list, drag down and let go to re-read installed apps
 - **Install any APK:** ⋯ → Install an APK file… picks an .apk (Downloads, a USB drive, ...) and installs it
 - **Settings backup:** favorites, renames, categories and store sources are copied next to your covers in
   `Android/data/com.cleanmyvr.launcher/files/`, and restored automatically after a reinstall if you copy

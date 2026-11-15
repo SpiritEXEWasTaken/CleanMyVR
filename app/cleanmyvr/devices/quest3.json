@@ -166,37 +166,37 @@
       "pkg": "com.oculus.facebook",
       "name": "Facebook",
       "why": "Facebook VR app; comes back with Meta's updates",
-      "tested": false
+      "tested": true
     },
     {
       "pkg": "com.oculus.igvr",
       "name": "Instagram",
       "why": "Instagram VR app; comes back with Meta's updates",
-      "tested": false
+      "tested": true
     },
     {
       "pkg": "com.facebook.arvr.quillplayer",
       "name": "Theater Elsewhere",
       "why": "Meta's Quill animated films player",
-      "tested": false
+      "tested": true
     },
     {
       "pkg": "com.oculus.helpcenter",
       "name": "Help & Tips",
       "why": "Help Center / Tips",
-      "tested": false
+      "tested": true
     },
     {
       "pkg": "com.oculus.vrprivacycheckup",
       "name": "Privacy Checkup",
       "why": "Privacy Checkup app (the settings stay in Settings)",
-      "tested": false
+      "tested": true
     },
     {
       "pkg": "com.meta.handseducationmodule",
       "name": "Hand-tracking tutorial",
       "why": "Hand-tracking tutorial (~330 MB)",
-      "tested": false
+      "tested": true
     }
   ]
 }

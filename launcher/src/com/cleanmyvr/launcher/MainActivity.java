@@ -80,6 +80,9 @@ public class MainActivity extends Activity {
 
     private LinearLayout tabsRow, content;
     private ScrollView scroll;
+    private TextView pullHint;                 // "Pull down to refresh" above the list
+    private float pullStartY = -1;
+    private boolean pulling;
     private EditText search;
     private ImageView wallpaperView;
     private View wallpaperScrim;
@@ -331,6 +334,11 @@ public class MainActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(0, 0, 0, dp(36));
         scroll.addView(content);
+        pullHint = text("", 15, MUTED, true);
+        pullHint.setGravity(Gravity.CENTER);
+        pullHint.setVisibility(View.GONE);
+        root.addView(pullHint, new LinearLayout.LayoutParams(-1, -2));
+        scroll.setOnTouchListener((v, e) -> { onPull(e); return false; });   // false: scrolling still works
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         scroll.addOnLayoutChangeListener((v, l, t, r, bt, ol, ot, or, ob) -> {
             if (r - l != or - ol) render();
@@ -1111,6 +1119,60 @@ public class MainActivity extends Activity {
     /** The name shown when you haven't renamed an app: its store name if known, else its own name. */
     String autoName(AppRepo.App a) {
         return a.storeName != null && prefs.onlineInfo() ? a.storeName : a.label;
+    }
+
+    // ------------------------------------------------------------------ pull to refresh
+
+    /** Drag down from the top of the list to re-read installed apps (no need to restart the launcher). */
+    private void onPull(MotionEvent e) {
+        int threshold = dp(140);
+        switch (e.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                pullStartY = scroll.getScrollY() == 0 ? e.getRawY() : -1;
+                pulling = false;
+                break;
+            case MotionEvent.ACTION_MOVE: {
+                if (pullStartY < 0) {
+                    if (scroll.getScrollY() == 0) pullStartY = e.getRawY();
+                    break;
+                }
+                float d = e.getRawY() - pullStartY;
+                if (d > dp(24) && scroll.getScrollY() == 0) {
+                    pulling = true;
+                    pullHint.setVisibility(View.VISIBLE);
+                    pullHint.setText(d > threshold ? "↻  Release to refresh" : "↓  Pull down to refresh");
+                    pullHint.setTextColor(d > threshold ? ACCENT : MUTED);
+                    int pad = (int) Math.min(d / 3, dp(40));
+                    pullHint.setPadding(0, pad, 0, pad);
+                } else if (pulling) {
+                    pullHint.setVisibility(View.GONE);
+                    pulling = false;
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (pulling && e.getActionMasked() == MotionEvent.ACTION_UP && e.getRawY() - pullStartY > threshold) {
+                    refreshApps();
+                } else {
+                    pullHint.setVisibility(View.GONE);
+                }
+                pullStartY = -1;
+                pulling = false;
+                break;
+        }
+    }
+
+    private void refreshApps() {
+        pullHint.setText("Refreshing…");
+        pullHint.setTextColor(MUTED);
+        pullHint.setPadding(0, dp(12), 0, dp(12));
+        AppRepo.invalidate();
+        coverCache.clear();
+        colorCache.clear();
+        reload();
+        if (prefs.storeMode() && storePage != null) net.execute(() -> new Store(this).refreshCatalog());
+        ui.postDelayed(() -> { pullHint.setVisibility(View.GONE); toast("Apps refreshed"); }, 900);
     }
 
     // ------------------------------------------------------------------ in-game menu
