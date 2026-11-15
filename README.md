@@ -32,6 +32,10 @@ On Linux, if the headset shows as "no permissions", add a udev rule for Meta's U
   whether a system update slipped through. **Fix what changed** puts it right again.
 - **Debloat** (per profile): *light* (Meta's extra apps), *balanced* (+ promos, telemetry uploaders,
   business management) or *balanced + block updates* (best-effort). There's a preview, and Restore undoes it.
+- **Block permanently** (Debloat page): for apps Meta keeps reinstalling (WhatsApp, Facebook, Instagram...).
+  CleanMyVR uninstalls the app completely and puts a tiny invisible placeholder with the same name in its
+  place, so Meta's updates can't bring it back. Every profile; Meta shows a one-time "unauthorized copy"
+  message per app. **Bring it back** removes the placeholder, and the Store can install the real app again.
 - **Backup**: photos and videos from **any** profile plus game saves on shared storage. Every file is
   SHA-256-checked against the headset, and `SHA256SUMS.txt` lets you re-verify later.
 - **Storage**: biggest apps, clearing caches, deleting captures (after typing DELETE).

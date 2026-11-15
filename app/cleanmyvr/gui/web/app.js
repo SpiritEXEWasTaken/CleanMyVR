@@ -91,6 +91,7 @@ async function debloatPage() {
   $("#db-untested").textContent = `Debloat is disabled for ${conn.device.name}: its profile hasn't been tested yet.`;
   $("#btn-debloat").disabled = !conn.device.tested;
   debloatPreview();
+  blockerList();
 }
 async function debloatPreview() {
   const plan = await api.plan_debloat(picked("level"), picked("dbuser"));
@@ -105,6 +106,21 @@ function debloatCount() {
   const all = [...document.querySelectorAll(".db-pick")], on = all.filter((c) => c.checked).length;
   $("#db-count").textContent = all.length ? `Will remove ${on} of ${all.length} app(s) · untick anything you want to keep` : "Nothing left to remove at this level";
   $("#btn-debloat").disabled = !conn.device.tested || !on;
+}
+
+async function blockerList() {
+  const list = await api.blocker_status();
+  $("#bl-list").innerHTML = list.length ? list.map((b) => `<div><code>${esc(b.name)}</code>
+      <span class="grow muted">${esc(b.why)}${b.tested ? "" : " · not tested yet"}</span>
+      <span class="pill ${b.state === "blocked" ? "ok" : "todo"}">${{blocked: "blocked", installed: "installed", removed: "removed"}[b.state]}</span>
+      ${b.state === "blocked" ? `<button class="bl-un" data-pkg="${esc(b.pkg)}">Bring it back</button>`
+        : `<button class="bl-do" data-pkg="${esc(b.pkg)}" data-tested="${b.tested}" ${b.available ? "" : "disabled"}>Block</button>`}</div>`).join("")
+    : '<span class="muted">No apps can be blocked on this headset.</span>';
+  document.querySelectorAll(".bl-do").forEach((x) => (x.onclick = () => run("block", {pkgs: [x.dataset.pkg]},
+    (x.dataset.tested === "true" ? "" : "Blocking this app hasn't been tested on a real headset yet. ") +
+    "Uninstall it completely and block it with a placeholder? Meta will show a one-time \"unauthorized copy\" message.")));
+  document.querySelectorAll(".bl-un").forEach((x) => (x.onclick = () => run("unblock", {pkgs: [x.dataset.pkg]},
+    "Remove the placeholder? Meta's Store can then install the real app again.")));
 }
 
 async function backupPage() {

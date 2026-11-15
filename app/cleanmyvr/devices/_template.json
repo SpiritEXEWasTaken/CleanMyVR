@@ -1,15 +1,34 @@
 {
   "id": "your-device-id",
   "name": "Headset name",
-  "match": {"ro.product.device": ["codename from: adb shell getprop ro.product.device"], "ro.product.model": ["Model as shown by getprop ro.product.model"]},
+  "match": {
+    "ro.product.device": [
+      "codename from: adb shell getprop ro.product.device"
+    ],
+    "ro.product.model": [
+      "Model as shown by getprop ro.product.model"
+    ]
+  },
   "tested": false,
   "tested_on": [],
-  "debloat": {"light": [], "balanced": []},
-  "update_blocking": {"remove": [], "restrict": null},
+  "debloat": {
+    "light": [],
+    "balanced": []
+  },
+  "update_blocking": {
+    "remove": [],
+    "restrict": null
+  },
   "never_remove": [],
-  "never_remove_prefixes": ["horizon.platform.", "horizonos."],
+  "never_remove_prefixes": [
+    "horizon.platform.",
+    "horizonos."
+  ],
   "protected": {},
   "comes_back": [],
   "environment": {},
-  "notes": ["Copy this file, rename it, fill it in on a real headset, then follow docs/ADDING_DEVICES.md."]
+  "notes": [
+    "Copy this file, rename it, fill it in on a real headset, then follow docs/ADDING_DEVICES.md."
+  ],
+  "blockable": []
 }

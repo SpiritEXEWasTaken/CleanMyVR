@@ -31,7 +31,9 @@ def profiles(h: Headset) -> list[dict]:
 
 def plan_debloat(h: Headset, level: str, user: int) -> list[dict]:
     """What a debloat would do, without changing anything. Apps you chose to keep start unchecked."""
-    installed = h.adb.packages(user)
+    from . import blocker
+    blocked = blocker.blocked_packages(h)
+    installed = h.adb.packages(user) - blocked     # a placeholder isn't the app
     kept = set(S.user_state(S.load(h), user).get("kept", []))
     items = h.debloat_list(level)
     if level == "updates":
@@ -39,7 +41,7 @@ def plan_debloat(h: Headset, level: str, user: int) -> list[dict]:
     out = []
     for it in items:
         pkg = it["pkg"]
-        status = "remove" if pkg in installed else "absent"
+        status = "remove" if pkg in installed else "blocked" if pkg in blocked else "absent"
         if h.is_never_remove(pkg):
             status = "refused"            # profile safety net: never touch these
         out.append({"pkg": pkg, "why": it.get("why", ""), "status": status, "keep": pkg in kept})
@@ -271,8 +273,10 @@ def adopt(h: Headset, progress=_noop) -> dict:
 
 def recheck(h: Headset) -> dict:
     """Compare the recorded state with the headset as it is now."""
+    from . import blocker
     st = S.load(h)
     items = []
+    blocked = blocker.blocked_packages(h)
     known_users = {uid for uid, _ in h.adb.users()}
     for uid_s, us in st.get("users", {}).items():
         uid = int(uid_s)
@@ -282,7 +286,7 @@ def recheck(h: Headset) -> dict:
             continue
         if not us.get("removed") and not us.get("debloat_level"):
             continue
-        installed = h.adb.packages(uid)
+        installed = h.adb.packages(uid) - blocked
         level_pkgs = {it["pkg"] for it in h.debloat_list(us.get("debloat_level") or "light")}
         level_pkgs -= set(us.get("kept", []))
         # removed apps that came back, plus any app from the chosen level that Meta (re)installed
@@ -314,6 +318,12 @@ def recheck(h: Headset) -> dict:
             items.append({"area": "launcher", "status": "todo" if old else "ok",
                           "text": f"Launcher {have} installed; {__version__} comes with this CleanMyVR (Launcher → Install / update)"
                           if old else f"Launcher {have} installed"})
+    want_blocked = set(st.get("blocked", {}))
+    if want_blocked:
+        lost = sorted(want_blocked - blocked)
+        items.append({"area": "blocked", "status": "drift" if lost else "ok", "packages": lost,
+                      "text": (f"No longer blocked: {', '.join(lost)}" if lost
+                               else f"{len(want_blocked)} app(s) blocked permanently")})
     env = environment_status(h)
     if env["available"]:
         items.append({"area": "environment", "status": "problem" if env["problem"] else "ok",

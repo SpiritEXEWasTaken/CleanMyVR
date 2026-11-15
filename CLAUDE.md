@@ -29,7 +29,8 @@ convenience.
 
 - `app/cleanmyvr/devices/*.json`: per-headset debloat lists, `never_remove`, `protected`, `comes_back`,
   update blocking. Schema enforced by `tests/test_core.py::Profiles`; start new ones from `_template.json`
-- `updater.py` (self-update from GitHub releases), `adb.py` (all adb calls), `device.py` (profile matching, `is_never_remove`), `state.py` (on-headset
+- `blocker.py` (Block permanently: placeholder APKs in `cleanmyvr/placeholders/`, rebuilt with
+  `app/packaging/build-placeholders.sh` when a `blockable` list changes), `updater.py` (self-update from GitHub releases), `adb.py` (all adb calls), `device.py` (profile matching, `is_never_remove`), `state.py` (on-headset
   record), `actions.py`, `backup.py`, `launcher.py`, `extras.py`, `cli.py`, `gui/` (pywebview `Api` +
   plain `gui/web/` HTML/CSS/JS; GUI and CLI must both expose new features)
 - `launcher/src/com/cleanmyvr/launcher/`: Java launcher. Store picks live in the separate repo
@@ -46,6 +47,10 @@ convenience.
    work. Don't infer safety from another model, a forum, or the package name.
 2. Removal is only `pm uninstall -k --user <id>`; restore is `cmd package install-existing --user <id>`.
    Never `pm uninstall` without `--user`, `pm disable` loops, or `rm` under `/system` or `/data/app`.
+   One exception: `blocker.py` ("Block permanently") fully uninstalls an app and installs a placeholder, but only
+   for packages in a profile's `blockable` list, never system apps (`_check` refuses them) or never_remove ones.
+   Mark a blockable entry `"tested": true` only after it was blocked on a real headset and Home, Store, a game
+   and Meta login were checked after a reboot.
 3. Anything the Store, games or Meta accounts need goes in `never_remove`. When unsure, leave it out.
 4. Untested profiles keep `"tested": false` and empty debloat lists.
 5. Every action that changes the headset calls `state.record` + `state.save`.
@@ -86,6 +91,10 @@ convenience.
   alive (the "keeps stopping" dialog holds it) leaves it stuck in "Binding services"; only `am force-stop` clears
   that. The launcher's `CrashGuard` ends the process itself and restarts the takeover from its `:guard` process
   (needs `WRITE_SECURE_SETTINGS`, granted by `launcher.install`/`repair`); `launcher.repair` force-stops first.
+- Meta reinstalls apps it put there (WhatsApp, Facebook, ...) with its updates, also on profiles where they were
+  removed. A placeholder with the same package name, version 2100000000 and our signature stops that (Android
+  refuses the update: VERSION_DOWNGRADE / UPDATE_INCOMPATIBLE). Horizon shows a one-time "unauthorized copy"
+  message per package (not again after a reboot). Tested with WhatsApp, Animal Rivals' Meta login still worked.
 - microG can't be installed: `INSTALL_FAILED_VERIFICATION_FAILURE: ... not allowed to declare
   com.google.android.c2dm.permission.SEND in a protected prefix`. Extras only offers Aurora Store.
 - `com.android.settings/.Settings` isn't exported to apps; open App info (`ACTION_APPLICATION_DETAILS_SETTINGS`) instead.

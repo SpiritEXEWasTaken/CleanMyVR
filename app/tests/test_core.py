@@ -9,7 +9,7 @@ from pathlib import Path
 
 from unittest import mock
 
-from cleanmyvr import backup, launcher, updater
+from cleanmyvr import backup, blocker, launcher, updater
 
 from cleanmyvr import actions, device
 from cleanmyvr import state as S
@@ -202,6 +202,53 @@ class Actions(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             actions.debloat(h, "balanced", 0)
         self.assertIn("com.oculus.facebook", fake.pkgs[0])
+
+
+class Blocking(unittest.TestCase):
+    def fake(self):
+        f = FakeAdb(["com.whatsapp", "com.oculus.store"], users=((0, "Owner"), (10, "Sister")), props=QUEST3_PROPS)
+        f.versions = {"com.whatsapp": 264307201}
+        orig = f.shell
+        def shell(cmd, timeout=120):
+            if cmd.startswith("pm list packages --show-versioncode"):
+                return Result(0, "\n".join(f"package:{p} versionCode:{f.versions.get(p, 1)}" for p in sorted(f.pkgs[0])))
+            if cmd.startswith("pm list packages -s"):
+                return Result(0, "")                       # nothing here is a system app
+            if cmd.startswith("pm uninstall com."):       # full uninstall (every profile)
+                pkg = cmd.split()[-1]
+                for u in f.pkgs: f.pkgs[u].discard(pkg)
+                f.versions.pop(pkg, None)
+                return Result(0, "Success")
+            return orig(cmd, timeout)
+        def run(*args, timeout=120):
+            pkg = Path(args[-1]).stem
+            f.pkgs[0].add(pkg); f.versions[pkg] = blocker.PLACEHOLDER_VERSION
+            return Result(0, "Success")
+        f.shell, f.run = shell, run
+        return f
+
+    def test_block_debloat_recheck_and_unblock(self):
+        f = self.fake()
+        h = headset(f)
+        self.assertTrue(blocker.placeholder_apk("com.whatsapp"), "placeholder ships with the app")
+        r = blocker.block(h, ["com.whatsapp"])
+        self.assertEqual(r["blocked"], ["com.whatsapp"])
+        self.assertIn("com.whatsapp", f.pkgs[10], "every profile gets the placeholder")
+        self.assertEqual(blocker.status(h)[0]["state"], "blocked")
+        # Debloat treats the placeholder as removed, so it won't uninstall it per profile
+        plan = {p["pkg"]: p["status"] for p in actions.plan_debloat(h, "balanced", 0)}
+        self.assertEqual(plan["com.whatsapp"], "blocked")
+        item = next(i for i in actions.recheck(h)["items"] if i["area"] == "blocked")
+        self.assertEqual(item["status"], "ok")
+        blocker.unblock(h, ["com.whatsapp"])
+        self.assertNotIn("com.whatsapp", f.pkgs[0])
+        self.assertNotIn("com.whatsapp", S.load(h).get("blocked", {}))
+
+    def test_refuses_apps_not_on_the_list(self):
+        f = self.fake()
+        r = blocker.block(headset(f), ["com.oculus.store"])
+        self.assertEqual(r["blocked"], [])
+        self.assertIn("com.oculus.store", f.pkgs[0], "the Store is never touched")
 
 
 class QuestHomeSwitcher(unittest.TestCase):

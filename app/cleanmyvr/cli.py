@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import __version__, actions, backup, extras, launcher, updater
+from . import __version__, actions, backup, blocker, extras, launcher, updater
 from . import state as S
 from .session import connect
 
@@ -206,6 +206,28 @@ def menu_launcher(h):
         launcher.uninstall(h, user, progress)
 
 
+def menu_block(h):
+    print(bold("Block apps permanently") + dim("  (for apps Meta keeps reinstalling)"))
+    print(dim("   Uninstalls the app completely and puts an invisible placeholder in its place, on every profile.\n"
+              "   Meta shows a one-time \"unauthorized copy\" message per app. Bring it back any time."))
+    items = blocker.status(h)
+    if not items:
+        print(dim("   No apps can be blocked on this headset."))
+        return
+    for i, b in enumerate(items, 1):
+        print(f"   {i}) {b['name']:<24} {b['state']:<10}" + dim("" if b["tested"] else "not tested yet"))
+    n = ask("Number to block / bring back (empty = back)")
+    try:
+        b = items[int(n) - 1]
+    except (ValueError, IndexError):
+        return
+    if b["state"] == "blocked":
+        if yes(f"Bring {b['name']} back (remove the placeholder)?"):
+            blocker.unblock(h, [b["pkg"]], progress)
+    elif yes(("Not tested on a real headset yet. " if not b["tested"] else "") + f"Block {b['name']} permanently?"):
+        blocker.block(h, [b["pkg"]], progress)
+
+
 def menu_extras(h):
     st = extras.status(h)
     print(bold("Google Play apps on Quest: Aurora Store"))
@@ -233,6 +255,8 @@ def fix_drift(h, rc):
                 actions.debloat(h, level, it["user"], progress)
         if it["area"] == "updates" and it["status"] == "drift" and yes("Re-apply update blocking?"):
             actions.block_updates(h, progress)
+        if it["area"] == "blocked" and it["status"] == "drift" and yes(f"Block {', '.join(it['packages'])} again?"):
+            blocker.block(h, it["packages"], progress)
         if it["area"] == "launcher" and it["status"] == "drift" and yes("Restart the launcher's Library takeover?"):
             launcher.repair(h, it.get("user"), progress)
 
@@ -262,6 +286,7 @@ def main() -> None:
         print(bold("\nWhat do you want to do?"))
         options = [("Fix what changed", fix_drift)] if drift else []
         options += [("Debloat (remove Meta extras, optionally block updates)", menu_debloat),
+                    ("Block apps permanently (ones Meta keeps reinstalling)", menu_block),
                     ("Back up photos, videos and game saves", menu_backup),
                     ("Storage: see what's big, clear caches", menu_storage),
                     ("Check the home environment (white sky bug)", menu_environment),

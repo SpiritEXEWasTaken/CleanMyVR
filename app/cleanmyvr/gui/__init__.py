@@ -8,7 +8,7 @@ from pathlib import Path
 
 import webview  # pywebview
 
-from .. import __version__, actions, backup, extras, launcher, updater
+from .. import __version__, actions, backup, blocker, extras, launcher, updater
 from .. import state as S
 from ..device import _resource_dir
 from ..session import connect
@@ -53,6 +53,9 @@ class Api:
 
     def environment(self):
         return actions.environment_status(self._need())
+
+    def blocker_status(self):
+        return blocker.status(self._need())
 
     def extras_status(self):
         h = self._need()
@@ -108,6 +111,8 @@ class Api:
             "install_play_apps": lambda: extras.install_play_apps(h, self._log),
             "remove_play_apps": lambda: extras.remove_play_apps(h, self._log),
             "install_qhs": lambda: extras.install_qhs(h, self._log),
+            "block": lambda: blocker.block(h, list(args["pkgs"]), self._log),
+            "unblock": lambda: blocker.unblock(h, list(args["pkgs"]), self._log),
             "remove_qhs": lambda: extras.remove_qhs(h, self._log),
         }
         if task not in jobs:
@@ -136,6 +141,8 @@ class Api:
                 actions.debloat(h, level, it["user"], self._log)
             elif it["area"] == "updates":
                 actions.block_updates(h, self._log)
+            elif it["area"] == "blocked":
+                blocker.block(h, it.get("packages", []), self._log)
             elif it["area"] == "launcher":
                 launcher.repair(h, it.get("user"), self._log)
         return {"fixed": True}

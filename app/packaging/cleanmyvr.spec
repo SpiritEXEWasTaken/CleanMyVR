@@ -9,6 +9,7 @@ here = os.path.abspath(os.path.join(SPECPATH, ".."))   # the app/ folder
 datas = [
     (os.path.join(here, "cleanmyvr", "devices"), "cleanmyvr/devices"),
     (os.path.join(here, "cleanmyvr", "gui", "web"), "cleanmyvr/gui/web"),
+    (os.path.join(here, "cleanmyvr", "placeholders"), "cleanmyvr/placeholders"),
 ]
 apk = os.path.join(here, "assets", "launcher.apk")
 if os.path.exists(apk):

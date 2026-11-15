@@ -154,5 +154,49 @@
     "Wireless ADB apps such as Quest Home Switcher need Loft (Haven 2025 + Calming) as the active home.",
     "Quest briefly locks (proximity sensor) and may show an invisible profile picker when several profiles exist.",
     "Toybox (com.meta.curio.toybox) is a free Meta game, not bloat: never removed by debloat."
+  ],
+  "blockable": [
+    {
+      "pkg": "com.whatsapp",
+      "name": "WhatsApp",
+      "why": "Installed by Meta during setup; comes back with Meta's updates",
+      "tested": true
+    },
+    {
+      "pkg": "com.oculus.facebook",
+      "name": "Facebook",
+      "why": "Facebook VR app; comes back with Meta's updates",
+      "tested": false
+    },
+    {
+      "pkg": "com.oculus.igvr",
+      "name": "Instagram",
+      "why": "Instagram VR app; comes back with Meta's updates",
+      "tested": false
+    },
+    {
+      "pkg": "com.facebook.arvr.quillplayer",
+      "name": "Theater Elsewhere",
+      "why": "Meta's Quill animated films player",
+      "tested": false
+    },
+    {
+      "pkg": "com.oculus.helpcenter",
+      "name": "Help & Tips",
+      "why": "Help Center / Tips",
+      "tested": false
+    },
+    {
+      "pkg": "com.oculus.vrprivacycheckup",
+      "name": "Privacy Checkup",
+      "why": "Privacy Checkup app (the settings stay in Settings)",
+      "tested": false
+    },
+    {
+      "pkg": "com.meta.handseducationmodule",
+      "name": "Hand-tracking tutorial",
+      "why": "Hand-tracking tutorial (~330 MB)",
+      "tested": false
+    }
   ]
 }
